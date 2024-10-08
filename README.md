@@ -22,8 +22,9 @@ Then modify the [parameters.yml](./parameters.yml) file to specify the build par
 
 This is a simplied flowchart:
 
+<p align="center">
 <img src=assets/kojiauto_flow.png  style="height:650px" align="middle" >
-
+</p>
 ---
 
 ## Approach
@@ -31,8 +32,9 @@ This is a simplied flowchart:
 Building and waiting on packages is heavily IO-bounded operation. Thus we employ asynchronous programming patterns to a big extent. 
 We utilize generator objects and Python's asyncio library.
 
+<p align="center">
 <img src=assets/kojirebuild_prog.png style="height:650px" align="middle">
-
+</p>
 
 ---
 
