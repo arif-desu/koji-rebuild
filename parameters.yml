@@ -1,0 +1,24 @@
+---
+configfile:
+    upstream: ${userHome}/.koji/config.d/fedora.conf
+    downstream: ${userHome}/.koji/config.d/local.conf
+
+build_target:
+    target: f40
+    build_tag: f40-build
+    dest_tag: f40-candidate
+    ext_repo: []
+
+# comma separated list of architectures to target when building packages
+arches: [riscv64]
+
+pkg_import:
+    topurl: "https://kojipkgs.fedoraproject.org/packages"
+    dir: ${userHome}/.rpms
+
+# files to fetch and store info
+files:
+    build: null                     # build - if defined, a buildlist would be read and only the specified packages would be built
+    ignore: ${cwd}/ignorelist.txt   # ignore - ignorelist specifying packages to ignore while building 
+    comps: ${cwd}/comps-f40.xml
+    log: ${cwd}/app.log
