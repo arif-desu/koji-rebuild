@@ -4,7 +4,6 @@ import logging
 import configparser
 import aiohttp
 import inspect
-import settings
 import koji
 
 def whoami():
@@ -31,38 +30,48 @@ def warn(msg = None, exc_info:bool = False):
     if msg is not None:
         logger.warning(msg, exc_info=exc_info)
         sys.stderr.write(msg+"\n")
-        
+
 """-----------------------------------------------------------------------------------------------------------"""
 
-def config_to_dict(configfile, section = None):
+def conf_to_dict(configfile: str) -> dict:
+    """
+    Reads a config file and returns a dictionary. The first declared section is parsed
+    @param: configfile(str) - Path to the configuration file
+
+    @return: dict
+    """
     logger = logging.getLogger(whoami())
+
+    conf_dict = dict()
+    section: str
 
     config = configparser.RawConfigParser()
     try :
-        f = os.path.expanduser(configfile) 
+        f = os.path.expanduser(configfile)
         config.read_file(open(f))
     except (FileNotFoundError, PermissionError, configparser.ParsingError) as e:
-        error(msg=e, exc_info=True)
+        logger.exception(e)
+        raise e
+    
+    try:
+        section = config.sections()[0]
+    except IndexError:
+        section = (os.path.basename(configfile)).split()[0]
+        raise configparser.NoSectionError(section)
 
-    if section is None:
-        warn("Section name not specified, trying to figure section from file name : %s" % os.path.basename(configfile))
-        try :
-            section = os.path.basename(configfile)
-            section = section.split(".")[0]
-            logger.info("Parsing section %s" % section)
-        except (IndexError, ValueError) as e:
-            error("Unexpected file name!  Expected - <config_file>.conf", exc_info=True)
+    conf_dict = dict(config.items(section))
 
-    try :
-        return dict(config.items(section))
-    except configparser.NoSectionError:
-       error("No section %s in file %s!" % section, configfile)
+    return conf_dict
 
 """-----------------------------------------------------------------------------------------------------------"""
 
 def nestedseek(node, key):
-    """
-    Seek for a value in a nested data structure
+    """Seek for a value in a nested data structure
+
+    @param: node: dict|list|tuple - Data structure node to parse
+    @param key: int|str - key/index to search for
+
+    @return : Generator
     """
     # check if node is a list
     if isinstance(node, list):
@@ -75,7 +84,7 @@ def nestedseek(node, key):
         # is key available in the immediate dictionary
         if key in node:
             yield node[key]
-        
+
         # is key available in a sub-dictionary
         for j in node.values():
             for val in nestedseek(j, key):
@@ -83,9 +92,15 @@ def nestedseek(node, key):
 
 """-----------------------------------------------------------------------------------------------------------"""
 
-async def downloadRPMs(session, tag, pkg):
+async def downloadRPMs(topurl, dir, session, tag, pkg):
+    """
+    Retrieves RPM packages from server
+    @param topurl - base url 
+    @param: session - KojiSession object
+    @param: tag -
+    """
     logger = logging.getLogger(whoami())
-    pkgpath = '/'.join([settings.data.pkg_import['dir'], pkg])
+    pkgpath = '/'.join([dir, pkg])
 
     if not os.path.exists(pkgpath):
         try:
@@ -93,7 +108,7 @@ async def downloadRPMs(session, tag, pkg):
         except PermissionError:
             logger.error(f"Permission error creating directory {pkgpath}")
             raise
-    
+
     """----------------------------------------------------------"""
     def nvraGenerator(tag, pkg):
         try:
@@ -107,7 +122,7 @@ async def downloadRPMs(session, tag, pkg):
             version = nestedseek(info, 'version')
             release = nestedseek(info, 'release')
             arch = nestedseek(info, 'arch')
-            
+
             for (n, v, r, a) in zip(name, version, release, arch):
                 yield (n, v, r, a)
         else:
@@ -120,7 +135,7 @@ async def downloadRPMs(session, tag, pkg):
                     assert response.status == 200
                 except AssertionError:
                     error("Server response code : %s" % str(response.status))
-                
+
                 with open(filepath, "wb") as f:
                     while True:
                         chunk = await response.content.read(1024)
@@ -135,38 +150,34 @@ async def downloadRPMs(session, tag, pkg):
         for i in nvra:
             (n, v, r, a) = i
             pkgname = '%s-%s-%s.%s.rpm' % (n,v,r,a)
-            url = '/'.join([settings.data.pkg_import['topurl'], pkg, v, r, a, pkgname])
+            url = '/'.join([topurl, pkg, v, r, a, pkgname])
             filepath = '/'.join([pkgpath, pkgname])
             await urlretrieve_async(url, filepath)
-    
+
         return pkgpath
     else:
         return None
-    
+
+
 """-----------------------------------------------------------------------------------------------------------"""
 
-def bootstrap(session):
-    logger = logging.getLogger(whoami())
-    if session.getSessionInfo() is None:
-        if session.login() == False:
-            error("You need to be logged into create tags and target!")
+def resolvepath(path):
+    """Resolves variables like ${userHome} and ${cwd} in a given path."""
+    if path is None:
+        return None
 
-    tag = settings.data['tag']
-    target = settings.data['target']
-    arch = settings.data['arches']
-    
-    build_tag = "-".join([tag, "build"])
-    upd_tag = "-".join([tag, "updates"])
-    upd_cand_tag = "-".join([upd_tag, "candidate"])
+    variables = {
+        "${userHome}": os.path.expanduser("~"),
+        "${cwd}": os.getcwd()
+    }
 
-    try:
-        session.createTag(name = tag)
-        session.createTag(name = upd_tag, parent = tag)
-        session.createTag(name = build_tag, parent = upd_tag, arches = arch)
-        session.createTag(name = upd_cand_tag, parent = upd_tag)
-        session.createBuildTarget(name = target, build_tag = build_tag, dest_tag = (upd_tag+"-candidate"))
-        session.createBuildTarget(name = (target+"-candidate"), build_tag = build_tag, dest_tag = (upd_tag+"-candidate"))
-    except koji.GenericError as e:
-        warn("Error creating tags and target: %s" % str(e).splitlines()[-1])
+    while "${" in path:
+        start_idx = path.find("${")
+        end_idx = path.find("}", start_idx)
+        variable = path[start_idx : end_idx + 1]
+        if variable in variables:
+            path = path.replace(variable, variables[variable])
+        else:
+            raise ValueError(f"Unknown variable: {variable}")
 
-    logger.info("Created tags %s, %s, %s, %s" % (tag, build_tag, upd_tag, upd_cand_tag))
+    return path      
