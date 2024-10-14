@@ -8,11 +8,8 @@ instance:
         config: ${userHome}/.koji/config.d/local.conf
         build_target:
             target: f40
-            build_tag:
-                tag: f40-build
-                arches: [riscv64]
-                ext_repo: []
             dest_tag: f40
+            arches: [riscv64]
 
 pkg_import:
   attempt: yes
