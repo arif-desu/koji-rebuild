@@ -30,6 +30,8 @@ class KojiSession(koji.ClientSession):
             sys.stderr.write("Error parsing the configuration file. Check logs for possible issues.")
             sys.exit(1)
 
+        self.build_target = instance['build_target']
+
         try:
             self.server = str(config["server"])
             self.logger.info("Server set to %s" %  self.server)
@@ -74,15 +76,6 @@ class KojiSession(koji.ClientSession):
 
         # Call parent class constructor
         koji.ClientSession.__init__(self, baseurl = self.server)
-
-        self.target = instance['build_target']['target']
-        try:
-            self.dest_tag = instance['build_target']['dest_tag']
-            self.build_tag = instance['build_target']['build_tag']
-        except KeyError:
-            build_target = self.getBuildTarget(self.target)
-            self.dest_tag = build_target['dest_tag_name']
-            self.build_tag = build_target['build_tag_name']
 
     """-----------------------------------------------------------------------------------------------------------"""
 
