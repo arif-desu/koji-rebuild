@@ -15,7 +15,7 @@ You can deploy your own Koji infrastructure following this [guide](https://docs.
 
 Alternatively you may use the shell scripts [here](https://github.com/arif-desu/koji-setup).
 
-Then modify the [parameters.yml](./parameters.yml) file to specify the build parameters. 
+Then modify the [config.yml](./config.yml) file to specify the build parameters. 
 
 ----
 ## Methodology
