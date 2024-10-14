@@ -20,8 +20,8 @@ class Settings:
         self.pkg_import['topurl'] = parameters['pkg_import']['topurl']
         self.pkg_import['dir'] = parameters['pkg_import']['dir']
 
-        self.files['build'] = resolvepath(parameters['files']['build'])
-        self.files['ignore'] = resolvepath(parameters['files']['ignore'])
+        self.files['buildlist'] = resolvepath(parameters['files']['buildlist'])
+        self.files['ignorelist'] = resolvepath(parameters['files']['ignorelist'])
         self.files['comps'] = resolvepath(parameters['files']['comps'])
         self.files['log'] = resolvepath(parameters['files']['log'])
 
