@@ -1,51 +1,66 @@
 import koji
 import os
+import sys
 import time
 import string
 import random
 import logging
-from util import (config_to_dict, nestedseek, error)
+import configparser
+from util import (conf_to_dict, nestedseek, error, resolvepath)
 
 
 class KojiSession(koji.ClientSession):
 
-    def __init__(self, kojiconfig , section = None):
-        assert kojiconfig, "Configuration file path should not be empty"
+    def __init__(self, instance: dict):
+        """ Initialize a koji session object
+        @param: instance - dictionary object containing koji instance information
+        """
         self.logger = logging.getLogger('kojisession')
 
-        config = config_to_dict(kojiconfig, section)
+        self.configfile = resolvepath(instance['config'])
+    
+        config = dict()
 
         try:
-            self.server = str(config.get("server"))
+            config = conf_to_dict(str(self.configfile))
+        except (FileNotFoundError, PermissionError, configparser.ParsingError) as e:
+            error(msg=e, exc_info=True)
+
+        if not any(config):
+            sys.stderr.write("Error parsing the configuration file. Check logs for possible issues.")
+            sys.exit(1)
+
+        try:
+            self.server = str(config["server"])
             self.logger.info("Server set to %s" %  self.server)
         except KeyError:
-            error("Parameter server not defined in %s" % kojiconfig)
-        
+            error("Parameter server not defined in %s" % self.configfile)
+
         try:
-            self.auth = str(config.get("authtype")).lower()
+            self.auth = str(config["authtype"]).lower()
         except KeyError as e:
             self.auth = None
             self.logger.warning("Authentication method not defined")
-        
+
         if self.auth is not None:
             if self.auth == "ssl":
                 try :
-                    self._ca_cert = os.path.expanduser(config.get("serverca"))
-                    self._client_cert = os.path.expanduser(config.get("cert"))
+                    self._ca_cert = os.path.expanduser(config["serverca"])
+                    self._client_cert = os.path.expanduser(config["cert"])
                     self.set = True
                 except KeyError:
-                    self.logger.warning('SSL certificate info not defined in %s' % kojiconfig, exc_info=True)
+                    self.logger.warning('SSL certificate info not defined in %s' % self.configfile, exc_info=True)
                     self.set = False
                 except (FileNotFoundError, PermissionError) as e:
                     self.logger.warning(e)
                     self.set = False
             elif self.auth == "kerberos" :
                 try:
-                    self._principal = os.path.expanduser(config.get("principal"))
-                    self._keytab = os.path.expanduser(config.get("keytab"))
+                    self._principal = os.path.expanduser(config["principal"])
+                    self._keytab = os.path.expanduser(config["keytab"])
                     self.set = True
                 except KeyError:
-                    self.logger.warning('Kerberos authentication info not defined in %s' % kojiconfig, exc_info=True)
+                    self.logger.warning('Kerberos authentication info not defined in %s' % self.configfile, exc_info=True)
                     self.set = False
                 except (FileNotFoundError, PermissionError) as e:
                     self.logger.warning(e)
@@ -57,29 +72,41 @@ class KojiSession(koji.ClientSession):
             self.logger.warning('Unsupported authentication method "%s" specified in configuration file' % self.auth)
             self.set = False
 
-        # Call parent class constructor   
+        # Call parent class constructor
         koji.ClientSession.__init__(self, baseurl = self.server)
+
+        self.target = instance['build_target']['target']
+        try:
+            self.dest_tag = instance['build_target']['dest_tag']
+            self.build_tag = instance['build_target']['build_tag']
+        except KeyError:
+            build_target = self.getBuildTarget(self.target)
+            self.dest_tag = build_target['dest_tag_name']
+            self.build_tag = build_target['build_tag_name']
 
     """-----------------------------------------------------------------------------------------------------------"""
 
-    def login(self) -> bool:
+    def auth_login(self) -> bool:
         """
         Login to koji instance using SSL or Keberos authentication
         """
         if self.set is not False:
             if self.auth == "ssl":
-                info = self.ssl_login(cert = self._client_cert, 
+                info = self.ssl_login(cert = self._client_cert,
                                     serverca = self._ca_cert)
             elif self.auth == "kerberos":
-                info =  self.gssapi_login(principal = self._principal, 
-                                        keytab = self._keytab) 
+                info =  self.gssapi_login(principal = self._principal,
+                                        keytab = self._keytab)
             else :
                 self.logger.critical('Unsupported authentication method "%s" specified' % self.auth)
                 return False
-            
+
             if info is True:
-                self.logger.info("Logged in as %s@%s. Authenticated via %s" % (((self.getLoggedInUser()).get('name')), 
-                                                                                 self.server, self.auth))
+                self.logger.info(
+                    "Logged in as %s@%s. Authenticated via %s" % (
+                    (self.getLoggedInUser()).get('name'), self.server, self.auth
+                    )
+                )
             return info
         else:
             return False
@@ -103,11 +130,12 @@ class KojiSession(koji.ClientSession):
             return info['source']
         else:
             return None
-        
+
     """-----------------------------------------------------------------------------------------------------------"""
 
     def isNoArch(self, tag, pkg):
         noarch = ['src', 'noarch']
+        builds = list()
 
         try:
             builds = self.getLatestRPMS(tag = tag, package = pkg)
@@ -119,7 +147,7 @@ class KojiSession(koji.ClientSession):
             for arch in arches:
                 if str(arch) not in noarch:
                     return False
-        
+
             return True
         else:
             self.logger.critical("No builds for package %s" % pkg)
@@ -138,21 +166,21 @@ class KojiSession(koji.ClientSession):
     """-----------------------------------------------------------------------------------------------------------"""
 
     def importPackage(self, pkgdir, tag, prune_dir: bool = True):
-        
+
         def unique_path(prefix):
             """Create a unique path fragment by appending a path component to prefix. """
             return '%s/%r.%s' % (prefix, time.time(),
                                 ''.join([random.choice(string.ascii_letters) for i in range(8)]))
-        
+
         if not os.path.exists(pkgdir):
             self.logger.critical(f"Directory {pkgdir} does not exist")
             return False
-        
+
         if self.getSessionInfo() is None:
-            if self.login() == False:
+            if self.auth_login() == False:
                 self.logger.critical("You must be logged in to import packages")
                 return False
-            
+
         for rpm in list(os.listdir(pkgdir)):
             localfile = '/'.join([pkgdir, rpm])
             serverdir = unique_path('app-import')
@@ -186,14 +214,8 @@ class KojiSession(koji.ClientSession):
 
     def totalHosts(self, arch) :
         return len(self.listHosts(arches = list(arch), enabled = True, channelID = "default"))
-    
+
     """-----------------------------------------------------------------------------------------------------------"""
-    
+
     def readyHosts(self, arch) :
         return len(self.listHosts(arches = list(arch), enabled = True, ready = True, channelID = "default"))
-
-    
-            
-
-        
-
