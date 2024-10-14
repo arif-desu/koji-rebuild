@@ -33,4 +33,4 @@ except FileNotFoundError:
     try:
         settings = Settings(sys.argv[2])
     except IndexError:
-        error("Yaml config file required")
+        error("Configuration file not provided!")
