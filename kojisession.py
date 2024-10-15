@@ -17,12 +17,13 @@ class KojiSession(koji.ClientSession):
         """
         self.logger = logging.getLogger('kojisession')
 
-        self.configfile = resolvepath(instance['config'])
+        self.instance:dict = instance
     
+        configfile = resolvepath(instance['config'])
         config = dict()
 
         try:
-            config = conf_to_dict(str(self.configfile))
+            config = conf_to_dict(str(configfile))
         except (FileNotFoundError, PermissionError, configparser.ParsingError) as e:
             error(msg=e, exc_info=True)
 
@@ -30,13 +31,11 @@ class KojiSession(koji.ClientSession):
             sys.stderr.write("Error parsing the configuration file. Check logs for possible issues.")
             sys.exit(1)
 
-        self.build_target = instance['build_target']
-
         try:
             self.server = str(config["server"])
             self.logger.info("Server set to %s" %  self.server)
         except KeyError:
-            error("Parameter server not defined in %s" % self.configfile)
+            error("Parameter server not defined in %s" % configfile)
 
         try:
             self.auth = str(config["authtype"]).lower()
@@ -51,7 +50,7 @@ class KojiSession(koji.ClientSession):
                     self._client_cert = os.path.expanduser(config["cert"])
                     self.set = True
                 except KeyError:
-                    self.logger.warning('SSL certificate info not defined in %s' % self.configfile, exc_info=True)
+                    self.logger.warning('SSL certificate info not defined in %s' % configfile, exc_info=True)
                     self.set = False
                 except (FileNotFoundError, PermissionError) as e:
                     self.logger.warning(e)
@@ -62,7 +61,7 @@ class KojiSession(koji.ClientSession):
                     self._keytab = os.path.expanduser(config["keytab"])
                     self.set = True
                 except KeyError:
-                    self.logger.warning('Kerberos authentication info not defined in %s' % self.configfile, exc_info=True)
+                    self.logger.warning('Kerberos authentication info not defined in %s' % configfile)
                     self.set = False
                 except (FileNotFoundError, PermissionError) as e:
                     self.logger.warning(e)
