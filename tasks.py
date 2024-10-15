@@ -17,7 +17,7 @@ class TaskWatcher:
     def __init__(self, session, task_id: int):
         self.id = task_id
         self.session = session
-        self.info = None
+        self.info = dict()
 
     def update(self):
         self.info = self.session.getTaskInfo(task_id=self.id, request=True)
