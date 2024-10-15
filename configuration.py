@@ -17,7 +17,8 @@ def setup(configfile: str):
 
 
 
-def get_instance(name: str):
+def get_instance(name: str) -> dict:
+    instance = dict()
     try:
         configfile = str(os.getenv('configfile'))
     except EnvironmentError:
@@ -25,5 +26,6 @@ def get_instance(name: str):
     else:
         with open(str(configfile), "r") as f:
             parameters = yaml.safe_load(f)
-
-        return parameters['instance'][name]
+        instance = parameters['instance'][name]
+    
+    return instance
