@@ -1,11 +1,13 @@
 import os
 import yaml
-from util import resolvepath
+from util import resolvepath, error
 
 def setup(configfile: str):
+    configfile = os.path.expanduser(configfile)
     with open(configfile, "r") as f:
         parameters = yaml.safe_load(f)
 
+    os.environ['configfile'] = configfile
     os.environ['import_attempt'] = str(parameters['pkg_import']['attempt'])
     os.environ['import_topurl'] = str(parameters['pkg_import']['topurl'])
     os.environ['import_dir'] = str(parameters['pkg_import']['dir'])
@@ -15,8 +17,13 @@ def setup(configfile: str):
 
 
 
-def get_instance(configfile: str, instance: str) -> dict:
-    with open(configfile, "r") as f:
-        parameters = yaml.safe_load(f)
+def get_instance(name: str):
+    try:
+        configfile = str(os.getenv('configfile'))
+    except EnvironmentError:
+        error('Environment variable "configfile" is not set. Call setup() function')
+    else:
+        with open(str(configfile), "r") as f:
+            parameters = yaml.safe_load(f)
 
-    return parameters['instance'][instance]
+        return parameters['instance'][name]
