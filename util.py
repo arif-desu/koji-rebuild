@@ -52,11 +52,11 @@ def conf_to_dict(configfile: str) -> dict:
     except (FileNotFoundError, PermissionError, configparser.ParsingError) as e:
         logger.exception(e)
         raise e
-    
+
     try:
         section = config.sections()[0]
     except IndexError:
-        section = (os.path.basename(configfile)).split()[0]
+        section = (os.path.basename(configfile)).split(".")[0]
         raise configparser.NoSectionError(section)
 
     conf_dict = dict(config.items(section))
@@ -68,10 +68,10 @@ def conf_to_dict(configfile: str) -> dict:
 def nestedseek(node, key):
     """Seek for a value in a nested data structure
 
-    @param: node: dict|list|tuple - Data structure node to parse
-    @param key: int|str - key/index to search for
+    @param: node(dict|list) - Data structure node to parse
+    @param: key(int|str) - key/index to search associated value
 
-    @return : Generator
+    @return: Generator
     """
     # check if node is a list
     if isinstance(node, list):
@@ -95,9 +95,13 @@ def nestedseek(node, key):
 async def downloadRPMs(topurl, dir, session, tag, pkg):
     """
     Retrieves RPM packages from server
-    @param topurl - base url 
+    @param topurl - rpm 
+    @param dir - parent directory path to store package rpms
     @param: session - KojiSession object
-    @param: tag -
+    @param: tag - tag reference for package
+    @param: pkg - package to be downloaded
+
+    @return - path to package download directory
     """
     logger = logging.getLogger(whoami())
     pkgpath = '/'.join([dir, pkg])
@@ -180,4 +184,4 @@ def resolvepath(path):
         else:
             raise ValueError(f"Unknown variable: {variable}")
 
-    return path      
+    return path
