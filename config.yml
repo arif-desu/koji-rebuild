@@ -18,6 +18,9 @@ pkg_import:
 
 # files to fetch and store info
 files:
-    buildlist: null                     # if defined, a buildlist would be read and only the specified packages would be built
-    ignorelist: ${cwd}/ignorelist.txt   # ignorelist - ignorelist specifying packages to ignore while building
+    # list specifying packages to build. If null, all packages associated with upstream tag will be attempted
+    buildlist: ${cwd}/buildlist.txt
+    # list specifying packages to ignore while building     
+    ignorelist: ${cwd}/ignorelist.txt
+    # path to file where application logs would be stored   
     logfile: ${cwd}/app.log
