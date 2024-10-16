@@ -29,11 +29,10 @@ This is a simplied flowchart:
 
 ## Approach
 
-Building and waiting on packages is heavily IO-bounded operation. Thus we employ asynchronous programming patterns to a big extent. 
-We utilize generator objects and Python's asyncio library.
+Building and waiting on packages is heavily IO-bounded operation. Thus we employ asynchronous programming patterns to a big extent, utilizing generator objects and Python's asyncio library.
 
 <p align="center">
-<img src=assets/kojirebuild_prog.png style="height:650px" align="middle">
+<img src=assets/koji_pythonrebuild.png style="height:800px" align="middle">
 </p>
 
 ---
@@ -45,6 +44,7 @@ We utilize generator objects and Python's asyncio library.
 - [ ] Async task dispatcher
 - [ ] Use comps to priortise builds based on groups
 - [ ] Build packages in exact order of dependencies
+- [ ] Email notifications for failed packages
 
 ---
 
