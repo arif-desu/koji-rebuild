@@ -14,7 +14,7 @@ class BuildState(IntEnum):
     CANCELLED = 4
 
 
-async def rebuildPackage(upstream, downstream, pkg) -> BuildState:
+async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState]:
     logger = logging.getLogger(__name__)
 
     result = BuildState.FAILED
@@ -41,7 +41,7 @@ async def rebuildPackage(upstream, downstream, pkg) -> BuildState:
 
     if not any(builds):
         logger.critical("No rpms built for package : %s in upstream" % pkg)
-        return BuildState.FAILED
+        return {pkg : BuildState.FAILED}
 
     # Check if package with same NVR already exists in downstream
     nvr_up = nvr_down = None
@@ -63,16 +63,16 @@ async def rebuildPackage(upstream, downstream, pkg) -> BuildState:
 
     if nvr_up == nvr_down:
         logger.info("Package %s is already built and tagged under %s" % (pkg, tag))
-        return BuildState.COMPLETE
-
+        return {pkg : BuildState.COMPLETE}
+    
     if os.getenv('import_attempt') == 'True':
         # Check if package is noarch
         if upstream.isNoArch(upst_tag, pkg):
             # download package rpms from upstream
-            pkgpath = await upstream.downloadRPMs(upst_tag, pkg)
+            pkgpath = await upstream.downloadRPMs(os.getenv('import_topurl'), os.getenv('import_dir'), upst_tag, pkg)
             if pkgpath is not None:
                 # import package rpms to downstream and tag the package under 'tag'
-                downstream.importPackage(os.getenv('import_topurl'), os.getenv('import_dir'), pkgpath, tag, pkg)
+                downstream.importPackage(pkgpath, tag, pkg)
 
             result = BuildState.COMPLETE
 
@@ -89,6 +89,6 @@ async def rebuildPackage(upstream, downstream, pkg) -> BuildState:
             elif res == TaskState.FAILED:
                 result = BuildState.FAILED
 
-    return result
+    return {pkg : result}
         
     
