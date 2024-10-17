@@ -9,7 +9,7 @@ instance:
     config: ${userHome}/.koji/config.d/local.conf
     target: f40
     tag: f40          # Used as destination tag
-    arches: riscv64
+    arches: [riscv64]
 
 pkg_import:
   attempt: yes
