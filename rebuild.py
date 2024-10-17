@@ -21,12 +21,12 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
     upst_tag = None
 
     try:
-        upst_target = upstream.instance['build_target']['target']
-        upst_tag = (upstream.getBuildTarget(upst_target)).get('dest_tag_name')
-    except (koji.GenericError, KeyError) as e:
-        error(e)
+        upst_tag = upstream.instance['tag']
+    except KeyError:
+        target = upstream.getBuildTarget(upstream.instance['target'])
+        upst_tag = target['dest_tag_name']
 
-    tag = downstream.instance['build_target']['dest_tag']
+    tag = downstream.instance['tag']
 
     if not downstream.checkTagPackage(tag = tag, pkg = pkg):
         logger.warning(f"No package : {pkg} associated with {tag}. Adding package to {tag}")
@@ -79,7 +79,7 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
     else:
         scmurl = upstream.getSCM_URL(upst_tag, pkg)
         if scmurl is not None:
-            task_id = downstream.build(src = scmurl, target = downstream.target)
+            task_id = downstream.build(src = scmurl, target = downstream.instance['target'])
             res = await watch_task(downstream, task_id)
 
             if res == TaskState.CLOSED:
