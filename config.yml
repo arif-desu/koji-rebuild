@@ -1,26 +1,26 @@
 instance:
-    upstream:
-        config: ${userHome}/.koji/config.d/fedora.conf
-        build_target:
-            target: f40
+  upstream:
+    config: ${userHome}/.koji/config.d/fedora.conf
+    target: f40
+    # tag used to fetch associated packages. if null, the destination tag mapped to target will be used
+    tag: f40-updates-candidate 
 
-    downstream:
-        config: ${userHome}/.koji/config.d/local.conf
-        build_target:
-            target: f40
-            dest_tag: f40
-            arches: [riscv64]
+  downstream:
+    config: ${userHome}/.koji/config.d/local.conf
+    target: f40
+    tag: f40          # Used as destination tag
+    arches: riscv64
 
 pkg_import:
-    attempt: yes
-    topurl: "https://kojipkgs.fedoraproject.org/packages"
-    dir: ${userHome}/.rpms
+  attempt: yes
+  topurl: "https:/kojipkgs.fedoraproject.org/packages"
+  dir: ${userHome}/.rpms
 
 # files to fetch and store info
 files:
-    # list specifying packages to build. If null, all packages associated with upstream tag will be attempted
-    buildlist: ${cwd}/buildlist.txt
-    # list specifying packages to ignore while building     
-    ignorelist: ${cwd}/ignorelist.txt
-    # path to file where application logs would be stored   
-    logfile: ${cwd}/app.log
+  # list specifying packages to build. If null, all packages associated with upstream tag will be attempted
+  buildlist: ${cwd}/buildlist.txt
+  # list specifying packages to ignore while building
+  ignorelist: ${cwd}/ignorelist.txt
+  # path to file where application logs would be stored
+  logfile: ${cwd}/app.log
