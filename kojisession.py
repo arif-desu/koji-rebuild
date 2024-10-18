@@ -205,9 +205,9 @@ class KojiSession(koji.ClientSession):
     """-----------------------------------------------------------------------------------------------------------"""
 
     def totalHosts(self, arch) :
-        return len(self.listHosts(arches = list(arch), enabled = True, channelID = "default"))
+        return len(self.listHosts(arches = [arch], enabled = True, channelID = "default"))
 
     """-----------------------------------------------------------------------------------------------------------"""
 
     def readyHosts(self, arch) :
-        return len(self.listHosts(arches = list(arch), enabled = True, ready = True, channelID = "default"))
+        return len(self.listHosts(arches = [arch], enabled = True, ready = True, channelID = "default"))
