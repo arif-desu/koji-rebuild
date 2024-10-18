@@ -113,7 +113,8 @@ if __name__ == "__main__" :
     packages = [pkg.strip() for pkg in buildlist]
 
     # Add packages to downstream koji database
+    downstream.auth_login()
     for pkg in packages:
-        downstream.packageListAdd(tag = dest_tag, pkg = pkg)
+        downstream.packageListAdd(taginfo = dest_tag, pkginfo = pkg, owner = downstream.getLoggedInUser()['name'])
 
     asyncio.run(task_dispatcher(upstream, downstream, packages))
