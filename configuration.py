@@ -10,7 +10,7 @@ def setup(configfile: str):
     os.environ['configfile'] = configfile
     os.environ['import_attempt'] = str(parameters['pkg_import']['attempt'])
     os.environ['import_topurl'] = str(parameters['pkg_import']['topurl'])
-    os.environ['import_dir'] = str(parameters['pkg_import']['dir'])
+    os.environ['import_dir'] = str(resolvepath(parameters['pkg_import']['dir']))
     os.environ['buildlist'] = str(resolvepath(parameters['files']['buildlist']))
     os.environ['ignorelist'] = str(resolvepath(parameters['files']['ignorelist']))
     os.environ['logfile'] = str(resolvepath(parameters['files']['logfile']))
