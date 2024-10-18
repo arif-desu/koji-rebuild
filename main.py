@@ -14,8 +14,11 @@ async def task_dispatcher(upstream, downstream, packages: list):
 
     task_queue = list()
 
+    # XXX: Currently checking only one arch
+    arches = (downstream.instance['arches'])[0]
+
     while packages or task_queue:
-        ready = downstream.readyHosts(arches[0])
+        ready = downstream.readyHosts(arches)
 
         while len(task_queue) < ready:
             build_task = asyncio.create_task(rebuildPackage(upstream, downstream, packages.pop(0)))
@@ -55,9 +58,6 @@ if __name__ == "__main__" :
 
     upstream = KojiSession(configuration.get_instance('upstream'))
     downstream = KojiSession(configuration.get_instance('downstream'))
-
-    # XXX : Currently only testing one arch
-    arches = downstream.instance['arches'][0]
 
     try:
         dest_tag = downstream.instance['tag']
