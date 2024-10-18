@@ -1,6 +1,6 @@
 from tasks import watch_task, TaskState
 import logging
-from util import error
+from util import error, downloadRPMs
 import koji
 from enum import IntEnum
 import os
@@ -65,29 +65,35 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
         logger.info("Package %s is already built and tagged under %s" % (pkg, tag))
         return {pkg : BuildState.COMPLETE}
     
+    attempt_import = False
     if os.getenv('import_attempt') == 'True':
+        attempt_import = True
+
+    if attempt_import:
         # Check if package is noarch
         if upstream.isNoArch(upst_tag, pkg):
             # download package rpms from upstream
-            pkgpath = await upstream.downloadRPMs(os.getenv('import_topurl'), os.getenv('import_dir'), upst_tag, pkg)
+            pkgpath = await downloadRPMs(os.getenv('import_topurl'), os.getenv('import_dir'), upstream, upst_tag, pkg)
             if pkgpath is not None:
                 # import package rpms to downstream and tag the package under 'tag'
                 downstream.importPackage(pkgpath, tag, pkg)
-
-            result = BuildState.COMPLETE
-
-    else:
-        scmurl = upstream.getSCM_URL(upst_tag, pkg)
-        if scmurl is not None:
-            task_id = downstream.build(src = scmurl, target = downstream.instance['target'])
-            res = await watch_task(downstream, task_id)
-
-            if res == TaskState.CLOSED:
                 result = BuildState.COMPLETE
-            elif res == TaskState.CANCELLED:
-                result = BuildState.CANCELLED
-            elif res == TaskState.FAILED:
+            else:
                 result = BuildState.FAILED
+            return {pkg : result}
+
+    scmurl = upstream.getSCM_URL(upst_tag, pkg)
+
+    if scmurl is not None:
+        task_id = downstream.build(src = scmurl, target = downstream.instance['target'])
+        res = await watch_task(downstream, task_id)
+
+        if res == TaskState.CLOSED:
+            result = BuildState.COMPLETE
+        elif res == TaskState.CANCELLED:
+            result = BuildState.CANCELLED
+        elif res == TaskState.FAILED:
+            result = BuildState.FAILED
 
     return {pkg : result}
         
