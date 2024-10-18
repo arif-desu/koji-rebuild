@@ -45,7 +45,7 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
 
     # Check if package with same NVR already exists in downstream
     nvr_up = nvr_down = None
-    b1 = builds[0]
+    b1 = builds[0][0]
     if b1['arch'] == 'src':
         nvr_up = "-".join([b1['name'], b1['version'], b1['release']])
 
@@ -55,7 +55,7 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
         nvr_down = None
     else:
         if any(builds):
-            b2 = builds[0]
+            b2 = builds[0][0]
             if b2['arch'] == 'src':
                 nvr_down = "-".join([b2['name'], b2['version'], b2['release']])
         else:
