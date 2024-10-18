@@ -118,7 +118,6 @@ class KojiSession(koji.ClientSession):
 
         if build_id is not None:
             info = self.getBuild(buildInfo = build_id)
-            self.logger.debug("Package %s : SCM URL - %s" % pkg, info['source'])
             return info['source']
         else:
             return None
