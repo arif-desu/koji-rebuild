@@ -13,7 +13,7 @@ instance:
 
 pkg_import:
   attempt: yes
-  topurl: "https:/kojipkgs.fedoraproject.org/packages"
+  topurl: "https://kojipkgs.fedoraproject.org/packages"
   dir: ${userHome}/.rpms
 
 # files to fetch and store info
