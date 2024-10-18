@@ -33,6 +33,10 @@ async def task_dispatcher(upstream, downstream, packages: list):
 
             if result[pkg] == BuildState.FAILED:
                 logger.critical("Package %s build failed!" % pkg)
+            elif result[pkg] == BuildState.CANCELLED:
+                logger.info("Package %s build cancelled" % pkg)
+            elif result[pkg] == BuildState.COMPLETE:
+                logger.info("Package %s build complete" % pkg)
 
             task_queue.remove(task)
 
