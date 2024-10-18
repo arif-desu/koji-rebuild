@@ -6,6 +6,7 @@ import string
 import random
 import logging
 import configparser
+import shutil
 from util import (conf_to_dict, nestedseek, error, resolvepath)
 
 
@@ -195,7 +196,7 @@ class KojiSession(koji.ClientSession):
         # Prune downloads after uploading to save disk space
         if prune_dir:
             try :
-                os.rmdir(pkgdir)
+                shutil.rmtree(pkgdir)
                 self.logger.info(f"Removing directory {pkgdir}")
             except PermissionError:
                 self.logger.warning(f"Permission error removing directory {pkgdir}")
