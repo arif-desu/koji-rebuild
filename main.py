@@ -44,11 +44,11 @@ async def task_dispatcher(upstream, downstream, packages: list):
 
 if __name__ == "__main__" :
     try:
-        configfile = os.path.expanduser("/".join([os.getcwd(), "config.yml"]))
-    except FileNotFoundError:
+        configfile = sys.argv[1]
+    except IndexError:
         try:
-            configfile = sys.argv[1]
-        except IndexError:
+            configfile = os.path.expanduser("/".join([os.getcwd(), "config.yml"]))
+        except FileNotFoundError:
             sys.stderr.write("Configuration file not found! Please provide config file in YAML format!")
             sys.exit(1)
 
