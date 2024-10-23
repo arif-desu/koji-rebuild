@@ -2,9 +2,6 @@
 
 A program to interact with Koji server(s) to build RPM packages.
 
-> [!NOTE]
-> This program is still in early development
-
 The aim of this project is to fetch package and tag info from upstream Koji instances such as from [Fedora's](https://koji.fedoraproject.org/koji/) instance and build those packages in a downstream koji instance, while keeping your patched compilers and/or custom RPM packages.
 
 ---
@@ -26,6 +23,7 @@ This is a simplied flowchart:
 <p align="center">
 <img src=assets/kojiauto_flow.png  style="height:650px" align="middle" >
 </p>
+
 ---
 
 ## Approach
@@ -43,9 +41,9 @@ Building and waiting on packages is heavily IO-bounded operation. Thus we employ
 - [x] Create task observer
 - [x] Check NVR before calling build APIs
 - [x] Async task dispatcher
+- [ ] Email notifications for failed packages
 - [ ] Use comps to priortise builds based on groups
 - [ ] Build packages in exact order of dependencies
-- [ ] Email notifications for failed packages
 
 ---
 
