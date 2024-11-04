@@ -18,7 +18,7 @@ Then modify the [config.yml](./config.yml) file to specify the build parameters.
 
 ## Methodology
 
-This is a simplied flowchart:
+This is a simplified flowchart:
 
 <p align="center">
 <img src=assets/kojiauto_flow.png  style="height:650px" align="middle" >
