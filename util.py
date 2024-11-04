@@ -6,32 +6,41 @@ import aiohttp
 import inspect
 import koji
 
+
 def whoami():
     return inspect.stack()[1][3]
 
+
 """-----------------------------------------------------------------------------------------------------------"""
+
 
 def whoiscaller():
     return inspect.stack()[2][3]
 
+
 """-----------------------------------------------------------------------------------------------------------"""
 
-def error(msg = None, code = 1, exc_info:bool = False):
+
+def error(msg=None, code=1, exc_info: bool = False):
     logger = logging.getLogger(whoiscaller())
     if msg is not None:
         logger.error(msg, exc_info=exc_info)
-        sys.stderr.write(msg+"\n")
+        sys.stderr.write(msg + "\n")
     sys.exit(code)
+
 
 """-----------------------------------------------------------------------------------------------------------"""
 
-def warn(msg = None, exc_info:bool = False):
+
+def warn(msg=None, exc_info: bool = False):
     logger = logging.getLogger(whoiscaller())
     if msg is not None:
         logger.warning(msg, exc_info=exc_info)
-        sys.stderr.write(msg+"\n")
+        sys.stderr.write(msg + "\n")
+
 
 """-----------------------------------------------------------------------------------------------------------"""
+
 
 def conf_to_dict(configfile: str) -> dict:
     """
@@ -46,7 +55,7 @@ def conf_to_dict(configfile: str) -> dict:
     section: str
 
     config = configparser.RawConfigParser()
-    try :
+    try:
         f = os.path.expanduser(configfile)
         config.read_file(open(f))
     except (FileNotFoundError, PermissionError, configparser.ParsingError) as e:
@@ -63,7 +72,9 @@ def conf_to_dict(configfile: str) -> dict:
 
     return conf_dict
 
+
 """-----------------------------------------------------------------------------------------------------------"""
+
 
 def nestedseek(node, key):
     """Seek for a value in a nested data structure
@@ -90,12 +101,14 @@ def nestedseek(node, key):
             for val in nestedseek(j, key):
                 yield val
 
+
 """-----------------------------------------------------------------------------------------------------------"""
+
 
 async def downloadRPMs(topurl, dir, session, tag, pkg):
     """
     Retrieves RPM packages from server
-    @param topurl - rpm 
+    @param topurl - rpm
     @param dir - parent directory path to store package rpms
     @param: session - KojiSession object
     @param: tag - tag reference for package
@@ -104,7 +117,7 @@ async def downloadRPMs(topurl, dir, session, tag, pkg):
     @return - path to package download directory
     """
     logger = logging.getLogger(whoami())
-    pkgpath = '/'.join([dir, pkg])
+    pkgpath = "/".join([dir, pkg])
 
     if not os.path.exists(pkgpath):
         try:
@@ -114,28 +127,31 @@ async def downloadRPMs(topurl, dir, session, tag, pkg):
             raise
 
     """----------------------------------------------------------"""
+
     def nvraGenerator(tag, pkg):
         try:
-            info = session.getLatestRPMS(tag = tag, package = pkg)
+            info = session.getLatestRPMS(tag=tag, package=pkg)
         except koji.GenericError as e:
             logger.critical(str(e).splitlines()[-1])
             return None
 
         if any(info):
-            name = nestedseek(info, 'name')
-            version = nestedseek(info, 'version')
-            release = nestedseek(info, 'release')
-            arch = nestedseek(info, 'arch')
+            name = nestedseek(info, "name")
+            version = nestedseek(info, "version")
+            release = nestedseek(info, "release")
+            arch = nestedseek(info, "arch")
 
-            for (n, v, r, a) in zip(name, version, release, arch):
+            for n, v, r, a in zip(name, version, release, arch):
                 yield (n, v, r, a)
         else:
             return None
+
     """----------------------------------------------------------"""
+
     async def urlretrieve_async(url, filepath):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
-                try :
+                try:
                     assert response.status == 200
                 except AssertionError:
                     error("Server response code : %s" % str(response.status))
@@ -146,6 +162,7 @@ async def downloadRPMs(topurl, dir, session, tag, pkg):
                         if not chunk:
                             break
                         f.write(chunk)
+
     """----------------------------------------------------------"""
 
     nvra = nvraGenerator(tag, pkg)
@@ -153,9 +170,9 @@ async def downloadRPMs(topurl, dir, session, tag, pkg):
     if nvra is not None:
         for i in nvra:
             (n, v, r, a) = i
-            pkgname = '%s-%s-%s.%s.rpm' % (n,v,r,a)
-            url = '/'.join([topurl, pkg, v, r, a, pkgname])
-            filepath = '/'.join([pkgpath, pkgname])
+            pkgname = "%s-%s-%s.%s.rpm" % (n, v, r, a)
+            url = "/".join([topurl, pkg, v, r, a, pkgname])
+            filepath = "/".join([pkgpath, pkgname])
             await urlretrieve_async(url, filepath)
 
         return pkgpath
@@ -165,15 +182,13 @@ async def downloadRPMs(topurl, dir, session, tag, pkg):
 
 """-----------------------------------------------------------------------------------------------------------"""
 
+
 def resolvepath(path):
     """Resolves variables like ${userHome} and ${cwd} in a given path."""
     if path is None:
         return None
 
-    variables = {
-        "${userHome}": os.path.expanduser("~"),
-        "${cwd}": os.getcwd()
-    }
+    variables = {"${userHome}": os.path.expanduser("~"), "${cwd}": os.getcwd()}
 
     while "${" in path:
         start_idx = path.find("${")

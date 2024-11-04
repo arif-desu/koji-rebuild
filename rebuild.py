@@ -21,16 +21,18 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
     upst_tag = None
 
     try:
-        upst_tag = upstream.instance['tag']
+        upst_tag = upstream.instance["tag"]
     except KeyError:
-        target = upstream.getBuildTarget(upstream.instance['target'])
-        upst_tag = target['dest_tag_name']
+        target = upstream.getBuildTarget(upstream.instance["target"])
+        upst_tag = target["dest_tag_name"]
 
-    tag = downstream.instance['tag']
+    tag = downstream.instance["tag"]
 
-    if not downstream.checkTagPackage(tag = tag, pkg = pkg):
-        logger.warning(f"No package : {pkg} associated with {tag}. Adding package to {tag}")
-        downstream.packageListAdd(tag = tag, pkg = pkg)
+    if not downstream.checkTagPackage(tag=tag, pkg=pkg):
+        logger.warning(
+            f"No package : {pkg} associated with {tag}. Adding package to {tag}"
+        )
+        downstream.packageListAdd(tag=tag, pkg=pkg)
 
     if downstream.getSessionInfo() is None:
         if downstream.auth_login() == False:
@@ -41,13 +43,13 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
 
     if not any(builds):
         logger.critical("No rpms built for package : %s in upstream" % pkg)
-        return {pkg : BuildState.FAILED}
+        return {pkg: BuildState.FAILED}
 
     # Check if package with same NVR already exists in downstream
     nvr_up = nvr_down = None
     b1 = builds[0][0]
-    if b1['arch'] == 'src':
-        nvr_up = "-".join([b1['name'], b1['version'], b1['release']])
+    if b1["arch"] == "src":
+        nvr_up = "-".join([b1["name"], b1["version"], b1["release"]])
 
     try:
         builds = downstream.getLatestRPMS(tag, pkg)
@@ -56,36 +58,42 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
     else:
         if any(builds):
             b2 = builds[0][0]
-            if b2['arch'] == 'src':
-                nvr_down = "-".join([b2['name'], b2['version'], b2['release']])
+            if b2["arch"] == "src":
+                nvr_down = "-".join([b2["name"], b2["version"], b2["release"]])
         else:
             nvr_down = None
 
     if nvr_up == nvr_down:
         logger.info("Package %s is already built and tagged under %s" % (pkg, tag))
-        return {pkg : BuildState.COMPLETE}
-    
+        return {pkg: BuildState.COMPLETE}
+
     attempt_import = False
-    if os.getenv('import_attempt') == 'True':
+    if os.getenv("import_attempt") == "True":
         attempt_import = True
 
     if attempt_import:
         # Check if package is noarch
         if upstream.isNoArch(upst_tag, pkg):
             # download package rpms from upstream
-            pkgpath = await downloadRPMs(os.getenv('import_topurl'), os.getenv('import_dir'), upstream, upst_tag, pkg)
+            pkgpath = await downloadRPMs(
+                os.getenv("import_topurl"),
+                os.getenv("import_dir"),
+                upstream,
+                upst_tag,
+                pkg,
+            )
             if pkgpath is not None:
                 # import package rpms to downstream and tag the package under 'tag'
                 downstream.importPackage(pkgpath, tag, pkg)
                 result = BuildState.COMPLETE
             else:
                 result = BuildState.FAILED
-            return {pkg : result}
+            return {pkg: result}
 
     scmurl = upstream.getSCM_URL(upst_tag, pkg)
 
     if scmurl is not None:
-        task_id = downstream.build(src = scmurl, target = downstream.instance['target'])
+        task_id = downstream.build(src=scmurl, target=downstream.instance["target"])
         res = await watch_task(downstream, task_id)
 
         if res == TaskState.CLOSED:
@@ -95,6 +103,4 @@ async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState
         elif res == TaskState.FAILED:
             result = BuildState.FAILED
 
-    return {pkg : result}
-        
-    
+    return {pkg: result}
