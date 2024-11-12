@@ -1,7 +1,6 @@
 from tasks import watch_task, TaskState
 import logging
-from util import error, downloadRPMs
-import koji
+from util import error, download_rpms
 from enum import IntEnum
 import os
 
@@ -14,93 +13,94 @@ class BuildState(IntEnum):
     CANCELLED = 4
 
 
-async def rebuildPackage(upstream, downstream, pkg: str) -> dict[str, BuildState]:
-    logger = logging.getLogger(__name__)
+class Rebuild:
+    def __init__(self, upstream, downstream) -> None:
+        self.upstream = upstream
+        self.downstream = downstream
+        self.tag_up = upstream.instance["tag"]
+        self.tag_down = downstream.instance["tag"]
+        self.logger = logging.getLogger(__name__)
 
-    result = BuildState.FAILED
-    upst_tag = None
+    def __check_pkg_status(self, pkg):
+        builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
+        return False if (not any(builds)) else True
 
-    try:
-        upst_tag = upstream.instance["tag"]
-    except KeyError:
-        target = upstream.getBuildTarget(upstream.instance["target"])
-        upst_tag = target["dest_tag_name"]
+    def __nvr_clash(self, pkg):
+        def get_nvr_from_build(instance, tag):
+            nvr = None
+            builds = instance.getLatestRPMS(tag, pkg)
+            if any(builds):
+                b = builds[0][0]
+                if b["arch"] == "src":
+                    nvr = "-".join([b["name"], b["version"], b["release"]])
+            return nvr
 
-    tag = downstream.instance["tag"]
+        nvr_up = get_nvr_from_build(self.upstream, self.tag_up)
+        nvr_down = get_nvr_from_build(self.downstream, self.tag_down)
 
-    if not downstream.checkTagPackage(tag=tag, pkg=pkg):
-        logger.warning(
-            f"No package : {pkg} associated with {tag}. Adding package to {tag}"
-        )
-        downstream.packageListAdd(tag=tag, pkg=pkg)
+        return True if (nvr_up == nvr_down) else False
 
-    if downstream.getSessionInfo() is None:
-        if downstream.auth_login() == False:
-            error("You need to be logged in to build packages!")
+    # FIXME: Check login
+    async def __try_import(self, pkg):
+        try:
+            topurl = os.getenv("IMPORT_TOPURL")
+            download_dir = os.getenv("IMPORT_DIR")
+        except EnvironmentError:
+            return False
 
-    # Check if rpms for given package were built in upstream
-    builds = upstream.getLatestRPMS(upst_tag, pkg)
+        pkgpath = None
 
-    if not any(builds):
-        logger.critical("No rpms built for package : %s in upstream" % pkg)
-        return {pkg: BuildState.FAILED}
-
-    # Check if package with same NVR already exists in downstream
-    nvr_up = nvr_down = None
-    b1 = builds[0][0]
-    if b1["arch"] == "src":
-        nvr_up = "-".join([b1["name"], b1["version"], b1["release"]])
-
-    try:
-        builds = downstream.getLatestRPMS(tag, pkg)
-    except koji.GenericError:
-        nvr_down = None
-    else:
-        if any(builds):
-            b2 = builds[0][0]
-            if b2["arch"] == "src":
-                nvr_down = "-".join([b2["name"], b2["version"], b2["release"]])
-        else:
-            nvr_down = None
-
-    if nvr_up == nvr_down:
-        logger.info("Package %s is already built and tagged under %s" % (pkg, tag))
-        return {pkg: BuildState.COMPLETE}
-
-    attempt_import = False
-    if os.getenv("import_attempt") == "True":
-        attempt_import = True
-
-    if attempt_import:
         # Check if package is noarch
-        if upstream.isNoArch(upst_tag, pkg):
+        # FIXME: Check noarch in rebuild?
+        if self.upstream.isNoArch(self.tag_up, pkg):
             # download package rpms from upstream
-            pkgpath = await downloadRPMs(
-                os.getenv("import_topurl"),
-                os.getenv("import_dir"),
-                upstream,
-                upst_tag,
+            pkgpath = await download_rpms(
+                topurl,
+                download_dir,
+                self.upstream,
+                self.tag_up,
                 pkg,
             )
-            if pkgpath is not None:
-                # import package rpms to downstream and tag the package under 'tag'
-                downstream.importPackage(pkgpath, tag, pkg)
-                result = BuildState.COMPLETE
-            else:
-                result = BuildState.FAILED
-            return {pkg: result}
-
-    scmurl = upstream.getSCM_URL(upst_tag, pkg)
-
-    if scmurl is not None:
-        task_id = downstream.build(src=scmurl, target=downstream.instance["target"])
-        res = await watch_task(downstream, task_id)
-
-        if res == TaskState.CLOSED:
+        if pkgpath:
+            self.downstream.importPackage(pkgpath, self.tag_down, pkg)
             result = BuildState.COMPLETE
-        elif res == TaskState.CANCELLED:
-            result = BuildState.CANCELLED
-        elif res == TaskState.FAILED:
+        else:
             result = BuildState.FAILED
+        return result
 
-    return {pkg: result}
+    async def build_with_scm(self, pkg):
+        result = BuildState.FAILED
+        task_id = -1
+        scmurl = self.upstream.getSCM_URL(self.tag_up, pkg)
+
+        if scmurl is not None:
+            task_id = self.downstream.build(
+                src=scmurl, target=self.downstream.instance["target"]
+            )
+            res = await watch_task(self.downstream, task_id)
+
+            if res == TaskState.CLOSED:
+                result = BuildState.COMPLETE
+            elif res == TaskState.CANCELLED:
+                result = BuildState.CANCELLED
+            elif res == TaskState.FAILED:
+                result = BuildState.FAILED
+
+        return (task_id, result)
+
+    async def rebuild_package(self, pkg) -> tuple[str, int, int]:
+        task_id = -1
+        if not self.__check_pkg_status(pkg):
+            return (pkg, task_id, BuildState.FAILED)
+
+        if self.__nvr_clash(pkg):
+            return (pkg, task_id, BuildState.COMPLETE)
+
+        attempt_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
+
+        if attempt_import and self.upstream.isNoArch(pkg):
+            result = await self.__try_import(pkg)
+        else:
+            task_id, result = await self.build_with_scm(pkg)
+
+        return (pkg, task_id, result)
