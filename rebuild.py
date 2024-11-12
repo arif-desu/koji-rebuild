@@ -1,6 +1,6 @@
 from tasks import watch_task, TaskState
 import logging
-from util import error, download_rpms
+from util import download_rpms
 from enum import IntEnum
 import os
 
@@ -50,17 +50,10 @@ class Rebuild:
 
         pkgpath = None
 
-        # Check if package is noarch
-        # FIXME: Check noarch in rebuild?
-        if self.upstream.isNoArch(self.tag_up, pkg):
-            # download package rpms from upstream
-            pkgpath = await download_rpms(
-                topurl,
-                download_dir,
-                self.upstream,
-                self.tag_up,
-                pkg,
-            )
+        # download package rpms from upstream
+        pkgpath = await download_rpms(
+            topurl, download_dir, self.upstream, self.tag_up, pkg
+        )
         if pkgpath:
             self.downstream.importPackage(pkgpath, self.tag_down, pkg)
             result = BuildState.COMPLETE
@@ -98,7 +91,7 @@ class Rebuild:
 
         attempt_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
 
-        if attempt_import and self.upstream.isNoArch(pkg):
+        if attempt_import and self.upstream.is_pkg_noarch(pkg):
             result = await self.__try_import(pkg)
         else:
             task_id, result = await self.build_with_scm(pkg)
