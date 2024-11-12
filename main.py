@@ -96,6 +96,7 @@ async def main():
                     validate_email(mail)
                 except EmailNotValidError:
                     error(f"Invalid email address {mail}")
+            recipients = ", ".join(recipients)
             notify = Notification(recipients)
     else:
         notify = None
