@@ -1,4 +1,5 @@
-from email.message import EmailMessage
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import aiosmtplib
 import os
 import keyring
@@ -7,7 +8,7 @@ from rebuild import BuildState
 
 class Notification:
 
-    def __init__(self, recipients: list) -> None:
+    def __init__(self, recipients: str) -> None:
         self.recipients = recipients
         self.senderid = os.getenv("MAIL_USERID")
         self.trigger = os.getenv("MAIL_TRIGGER")
@@ -15,11 +16,13 @@ class Notification:
         self.port = int(os.getenv("MAIL_PORT"))  # type:ignore
 
     async def send_email(self, subject: str, msg: str):
-        message = EmailMessage()
-        message["From"] = self.senderid
+        message = MIMEMultipart("alternative")
+        message["From"] = str(self.senderid)
         message["To"] = self.recipients
         message["Subject"] = subject
-        message.set_content(msg)
+
+        html_msg = MIMEText(msg, "html", "utf-8")
+        message.attach(html_msg)
 
         service = "kojibuild"
         user = str(os.getenv("USER"))
@@ -29,14 +32,24 @@ class Notification:
             hostname=self.server,
             port=self.port,  # type: ignore
             start_tls=True,
-            username=str(os.getenv("MAIL_USERID")),
+            username=self.senderid,
             password=keyring.get_password(service_name=service, username=user),
         )
 
-    # TODO: Check notification trigger
-    async def build_notify(self, pkg_status, taskurl):
+    async def build_notify(self, pkg_status, task_url):
         subj = "Koji Build System : "
         subj += "FAILED" if pkg_status == BuildState.FAILED else "COMPLETED"
-        msg = f"Check logs at {taskurl}"
+        msg = f"<html><b><p>Check logs at <a href={task_url}>{task_url}</a></p></b></html>"
+        trigger = os.getenv("MAIL_TRIGGER")
 
-        await self.send_email(subj, msg)
+        if trigger == "fail":
+            flag = 1 if pkg_status == BuildState.FAILED else 0
+        elif trigger == "build":
+            flag = 1 if pkg_status == BuildState.COMPLETE else 0
+        elif trigger == "all":
+            flag = 1 if pkg_status == (BuildState.COMPLETE or BuildState.FAILED) else 0
+        else:
+            flag = 0
+
+        if flag:
+            await self.send_email(subj, msg)
