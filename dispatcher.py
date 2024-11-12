@@ -13,16 +13,15 @@ async def task_dispatcher(
     task_queue = list()
 
     # XXX: Currently checking only one arch
-    arches = (downstream.instance["arches"])[0]
+    arch = (downstream.instance["arches"])[0]
     rebuild = Rebuild(upstream, downstream)
 
-    def get_taskurl(session, task_id):
-        url = session.config["weburl"]
-        url += f"taskinfo?taskID={task_id}"
+    def get_taskurl(session, task_id: int):
+        url = "%s/%s?%s=%d" % (session.config["weburl"], "taskinfo", "taskID", task_id)
         return url
 
     while packages or task_queue:
-        ready = downstream.get_ready_hosts(arches)
+        ready = downstream.get_ready_hosts(arch)
 
         while len(task_queue) < ready:
             build_task = asyncio.create_task(rebuild.rebuild_package(packages.pop(0)))
