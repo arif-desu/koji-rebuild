@@ -88,7 +88,7 @@ class Configuration:
         except KeyError:
             os.environ["IMPORT_ATTEMPT"] = "False"
 
-        if os.environ["IMPORT_ATTEMPT"] == "True":
+        if os.getenv("IMPORT_ATTEMPT") == "True":
             try:
                 os.environ["IMPORT_TOPURL"] = str(
                     self.parameters["pkg_import"]["topurl"]
@@ -110,6 +110,6 @@ class Configuration:
                 resolvepath(self.parameters["files"]["logfile"])
             )
         except KeyError:
-            pass  # TODO: Handle exception
+            pass
 
         await self.__email_setup()
