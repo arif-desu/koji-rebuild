@@ -2,7 +2,7 @@ import asyncio
 import logging
 from notification import Notification
 from rebuild import Rebuild, BuildState
-from util import whoami
+from util import whoami, error
 
 
 async def task_dispatcher(
@@ -14,6 +14,10 @@ async def task_dispatcher(
 
     # XXX: Currently checking only one arch
     arch = (downstream.instance["arches"])[0]
+
+    if downstream.get_total_hosts(arch) == 0:
+        error(f"No builders available for architecture {arch}")
+
     rebuild = Rebuild(upstream, downstream)
 
     def get_taskurl(session, task_id: int):
