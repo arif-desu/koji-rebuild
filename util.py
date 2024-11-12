@@ -105,7 +105,7 @@ def nestedseek(node, key):
 """-----------------------------------------------------------------------------------------------------------"""
 
 
-async def downloadRPMs(topurl, dir, session, tag, pkg):
+async def download_rpms(topurl, dir, session, tag, pkg):
     """
     Retrieves RPM packages from server
     @param topurl - rpm
@@ -184,11 +184,11 @@ async def downloadRPMs(topurl, dir, session, tag, pkg):
 
 
 def resolvepath(path):
-    """Resolves variables like ${userHome} and ${cwd} in a given path."""
+    """Resolves relative path specified as environment variable."""
     if path is None:
         return None
 
-    variables = {"${userHome}": os.path.expanduser("~"), "${cwd}": os.getcwd()}
+    variables = {"${HOME}": os.path.expanduser("~"), "${PWD}": os.getcwd()}
 
     while "${" in path:
         start_idx = path.find("${")
