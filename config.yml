@@ -23,7 +23,7 @@ files:
   # list specifying packages to ignore while building
   ignorelist: ${PWD}/ignorelist.txt
   # path to file where application logs would be stored
-  logfile: ${PWD}/app.log
+  logfile: ${PWD}/kojibuild.log
 
 email:
   notify: no
