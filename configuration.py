@@ -32,7 +32,7 @@ class Configuration:
                 os.environ["MAIL_TRIGGER"] = str(self.parameters["email"]["trigger"])
                 os.environ["MAIL_SERVER"] = str(self.parameters["email"]["server"])
                 os.environ["MAIL_USERID"] = str(self.parameters["email"]["sender_id"])
-            except:
+            except KeyError:
                 error("Email parameter(s) undefined", exc_info=True)
 
             try:
@@ -52,7 +52,7 @@ class Configuration:
             finally:
                 valid_auth = ["none", "tls", "start_tls"]
                 if auth.lower() not in valid_auth:  # type: ignore
-                    self.logger.critical(f'Invalid authentication method "auth"')
+                    self.logger.critical('Invalid authentication method "auth"')
                 auth = "none"
 
             service = "kojibuild"
