@@ -1,6 +1,6 @@
 from tasks import watch_task, TaskState
 import logging
-from util import download_rpms
+from util import download_rpms, nestedseek
 from enum import IntEnum
 import os
 
@@ -25,20 +25,19 @@ class Rebuild:
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         return False if (not any(builds)) else True
 
-    def __nvr_clash(self, pkg):
-        def get_nvr_from_build(instance, tag):
+    def _is_pkg_built_previously(self, pkg):
+        builds = self.upstream.getLatestRPMS(pkg)
+        if any(builds):
+            nvr = list(nestedseek(builds, "nvr"))[0]
+        else:
             nvr = None
-            builds = instance.getLatestRPMS(tag, pkg)
-            if any(builds):
-                b = builds[0][0]
-                if b["arch"] == "src":
-                    nvr = "-".join([b["name"], b["version"], b["release"]])
-            return nvr
-
-        nvr_up = get_nvr_from_build(self.upstream, self.tag_up)
-        nvr_down = get_nvr_from_build(self.downstream, self.tag_down)
-
-        return True if (nvr_up == nvr_down) else False
+        if nvr is not None:
+            if self.downstream.getBuild(nvr) is None:
+                return False
+            else:
+                return True
+        else:
+            return False
 
     # FIXME: Check login
     async def __try_import(self, pkg):
@@ -86,7 +85,7 @@ class Rebuild:
         if not self.__check_pkg_status(pkg):
             return (pkg, task_id, BuildState.FAILED)
 
-        if self.__nvr_clash(pkg):
+        if self._is_pkg_built_previously(pkg):
             return (pkg, task_id, BuildState.COMPLETE)
 
         attempt_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
