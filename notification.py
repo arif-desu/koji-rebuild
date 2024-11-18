@@ -37,6 +37,8 @@ class Notification:
         )
 
     async def build_notify(self, pkg_status, task_url):
+        if task_url is None:
+            return
         subj = "Koji Build System : "
         subj += "FAILED" if pkg_status == BuildState.FAILED else "COMPLETED"
         msg = f"<html><b><p>Check logs at <a href={task_url}>{task_url}</a></p></b></html>"
