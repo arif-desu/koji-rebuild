@@ -29,7 +29,7 @@ class TaskWatcher:
         return state in [TaskState.CLOSED, TaskState.CANCELLED, TaskState.FAILED]
 
 
-async def watch_task(session, task_id, poll_interval: int = 300) -> int:
+async def watch_task(session, task_id, poll_interval: int = 60) -> int:
     """
     :param session - koji client session object
     :param task_id - task id
