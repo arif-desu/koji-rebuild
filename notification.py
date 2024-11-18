@@ -1,5 +1,4 @@
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import aiosmtplib
 import os
 import keyring
@@ -10,31 +9,30 @@ class Notification:
 
     def __init__(self, recipients: str) -> None:
         self.recipients = recipients
-        self.senderid = os.getenv("MAIL_USERID")
+        self.senderid = str(os.getenv("MAIL_USERID"))
         self.trigger = os.getenv("MAIL_TRIGGER")
-        self.server = str(os.getenv("MAIL_SERVER"))
-        self.port = int(os.getenv("MAIL_PORT"))  # type:ignore
+
+        tls = True if os.getenv("MAIL_AUTH") == "tls" else False
+        start_tls = True if os.getenv("MAIL_AUTH") == "start_tls" else False
+
+        self.client = aiosmtplib.SMTP(
+            hostname=str(os.getenv(("MAIL_SERVER"))),
+            port=int(os.getenv("MAIL_PORT")),  # type:ignore
+            username=str(os.getenv("MAIL_USERID")),
+            password=keyring.get_password("kojibuild", str(os.getenv("USER"))),
+            use_tls=tls,
+            start_tls=start_tls,
+        )
 
     async def send_email(self, subject: str, msg: str):
-        message = MIMEMultipart("alternative")
+        message = MIMEText(msg, "html", "utf-8")
         message["From"] = str(self.senderid)
         message["To"] = self.recipients
         message["Subject"] = subject
 
-        html_msg = MIMEText(msg, "html", "utf-8")
-        message.attach(html_msg)
-
-        service = "kojibuild"
-        user = str(os.getenv("USER"))
-
-        await aiosmtplib.send(
-            message=message,
-            hostname=self.server,
-            port=self.port,  # type: ignore
-            start_tls=True,
-            username=self.senderid,
-            password=keyring.get_password(service_name=service, username=user),
-        )
+        await self.client.connect()
+        await self.client.send_message(message)
+        await self.client.quit()
 
     async def build_notify(self, pkg_status, task_url):
         if task_url is None:
