@@ -91,7 +91,7 @@ class Rebuild:
 
         attempt_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
 
-        if attempt_import and self.upstream.is_pkg_noarch(pkg):
+        if attempt_import and self.upstream.is_pkg_noarch(self.tag_up, pkg):
             result = await self.__try_import(pkg)
         else:
             task_id, result = await self.build_with_scm(pkg)
