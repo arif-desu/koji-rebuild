@@ -43,7 +43,7 @@ async def task_dispatcher(
             elif result == BuildState.COMPLETE:
                 logger.info("Package %s build complete" % pkg)
 
-            if isinstance(notify, Notification):
+            if task_id > 0 and isinstance(notify, Notification):
                 taskurl = get_taskurl(downstream, task_id)
                 await notify.build_notify(result, taskurl)
 
