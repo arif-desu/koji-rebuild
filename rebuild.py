@@ -30,7 +30,7 @@ class Rebuild:
         return False if (not any(builds)) else True
 
     def _is_pkg_built_previously(self, pkg):
-        builds = self.upstream.getLatestRPMS(pkg)
+        builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         if any(builds):
             nvr = list(nestedseek(builds, "nvr"))[0]
         else:
