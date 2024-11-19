@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import configparser
+from typing import NoReturn
 import aiohttp
 import inspect
 import koji
@@ -21,7 +22,7 @@ def whoiscaller():
 """-----------------------------------------------------------------------------------------------------------"""
 
 
-def error(msg=None, code=1, exc_info: bool = False):
+def error(msg=None, code=1, exc_info: bool = False) -> NoReturn:
     logger = logging.getLogger(whoiscaller())
     if msg is not None:
         logger.error(msg, exc_info=exc_info)
