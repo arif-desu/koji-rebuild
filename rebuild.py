@@ -36,10 +36,15 @@ class Rebuild:
         else:
             nvr = None
         if nvr is not None:
-            if self.downstream.getBuild(nvr) is None:
+            builds = self.downstream.getBuild(nvr)
+            if builds is None:
                 return False
             else:
-                return True
+                status = list(nestedseek(builds, "status"))[0]
+                if status == BuildState.COMPLETE:
+                    return True
+                else:
+                    return False
         else:
             return False
 
@@ -60,8 +65,10 @@ class Rebuild:
         if pkgpath:
             self.downstream.importPackage(pkgpath, self.tag_down, pkg)
             result = BuildState.COMPLETE
+            self.logger.info(f"Successfully imported package {pkg}")
         else:
             result = BuildState.FAILED
+            self.logger.info(f"Failed to import package {pkg}")
         return result
 
     async def build_with_scm(self, pkg):
@@ -98,7 +105,8 @@ class Rebuild:
         if self.try_import:
             if self.upstream.is_pkg_noarch(self.tag_up, pkg):
                 result = await self._import_pkg(pkg)
-        else:
-            task_id, result = await self.build_with_scm(pkg)
+                return (pkg, task_id, result)
+
+        task_id, result = await self.build_with_scm(pkg)
 
         return (pkg, task_id, result)
