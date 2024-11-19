@@ -21,7 +21,7 @@ class Rebuild:
         self.tag_down = downstream.instance["tag"]
         self.logger = logging.getLogger(__name__)
 
-    def __check_pkg_status(self, pkg):
+    def _is_pkg_available_upstream(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         return False if (not any(builds)) else True
 
@@ -40,7 +40,7 @@ class Rebuild:
             return False
 
     # FIXME: Check login
-    async def __try_import(self, pkg):
+    async def _import_pkg(self, pkg):
         try:
             topurl = os.getenv("IMPORT_TOPURL")
             download_dir = os.getenv("IMPORT_DIR")
@@ -82,7 +82,7 @@ class Rebuild:
 
     async def rebuild_package(self, pkg) -> tuple[str, int, int]:
         task_id = -1
-        if not self.__check_pkg_status(pkg):
+        if not self._is_pkg_available_upstream(pkg):
             return (pkg, task_id, BuildState.FAILED)
 
         if self._is_pkg_built_previously(pkg):
@@ -91,7 +91,7 @@ class Rebuild:
         attempt_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
 
         if attempt_import and self.upstream.is_pkg_noarch(self.tag_up, pkg):
-            result = await self.__try_import(pkg)
+            result = await self._import_pkg(pkg)
         else:
             task_id, result = await self.build_with_scm(pkg)
 
