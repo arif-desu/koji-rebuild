@@ -1,6 +1,6 @@
 from tasks import watch_task, TaskState
 import logging
-from util import download_rpms, nestedseek
+from util import download_rpms, error, nestedseek
 from enum import IntEnum
 import os
 
@@ -20,6 +20,10 @@ class Rebuild:
         self.tag_up = upstream.instance["tag"]
         self.tag_down = downstream.instance["tag"]
         self.logger = logging.getLogger(__name__)
+        try:
+            self.try_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
+        except EnvironmentError:
+            self.try_import = False
 
     def _is_pkg_available_upstream(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
@@ -45,7 +49,7 @@ class Rebuild:
             topurl = os.getenv("IMPORT_TOPURL")
             download_dir = os.getenv("IMPORT_DIR")
         except EnvironmentError:
-            return False
+            error("Error importing package", exc_info=True)
 
         pkgpath = None
 
@@ -82,16 +86,18 @@ class Rebuild:
 
     async def rebuild_package(self, pkg) -> tuple[str, int, int]:
         task_id = -1
+        result: BuildState = BuildState.BUILDING
         if not self._is_pkg_available_upstream(pkg):
+            self.logger.critical(f"Package: {pkg} is unavailable")
             return (pkg, task_id, BuildState.FAILED)
 
         if self._is_pkg_built_previously(pkg):
+            self.logger.info(f"Package {pkg} is already built")
             return (pkg, task_id, BuildState.COMPLETE)
 
-        attempt_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
-
-        if attempt_import and self.upstream.is_pkg_noarch(self.tag_up, pkg):
-            result = await self._import_pkg(pkg)
+        if self.try_import:
+            if self.upstream.is_pkg_noarch(self.tag_up, pkg):
+                result = await self._import_pkg(pkg)
         else:
             task_id, result = await self.build_with_scm(pkg)
 
