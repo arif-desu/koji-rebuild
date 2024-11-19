@@ -27,14 +27,14 @@ async def task_dispatcher(
     while packages or task_queue:
         ready = downstream.get_ready_hosts(arch)
 
-        while len(task_queue) < ready:
+        while len(task_queue) < ready and packages:
             build_task = asyncio.create_task(rebuild.rebuild_package(packages.pop(0)))
             task_queue.append(build_task)
 
         done, _ = await asyncio.wait(task_queue, return_when=asyncio.FIRST_COMPLETED)
 
         for task in done:
-            pkg, task_id, result = await task
+            pkg, task_id, result = task.result()
 
             if result == BuildState.FAILED:
                 logger.critical("Package %s build failed!" % pkg)
