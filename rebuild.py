@@ -37,10 +37,10 @@ class Rebuild:
             nvr = None
         if nvr is not None:
             builds = self.downstream.getBuild(nvr)
-            if builds is None:
+            if not any(builds):
                 return False
             else:
-                status = list(nestedseek(builds, "status"))[0]
+                status = nestedseek(builds, "status")
                 if status == BuildState.COMPLETE:
                     return True
                 else:
