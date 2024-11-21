@@ -21,6 +21,8 @@ async def task_dispatcher(
     rebuild = Rebuild(upstream, downstream)
 
     def get_taskurl(session, task_id: int):
+        if task_id <= 0:
+            return None
         url = "%s/%s?%s=%d" % (session.config["weburl"], "taskinfo", "taskID", task_id)
         return url
 
@@ -43,8 +45,8 @@ async def task_dispatcher(
             elif result == BuildState.COMPLETE:
                 logger.info("Package %s build complete" % pkg)
 
-            if task_id > 0 and isinstance(notify, Notification):
+            if isinstance(notify, Notification):
                 taskurl = get_taskurl(downstream, task_id)
-                await notify.build_notify(result, taskurl)
+                await notify.build_notify(pkg, result, taskurl)
 
             task_queue.remove(task)
