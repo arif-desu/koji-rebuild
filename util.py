@@ -12,14 +12,14 @@ def whoami():
     return inspect.stack()[1][3]
 
 
-"""-----------------------------------------------------------------------------------------------------------"""
+"""---------------------------------------------------------------------------------------------"""
 
 
 def whoiscaller():
     return inspect.stack()[2][3]
 
 
-"""-----------------------------------------------------------------------------------------------------------"""
+"""---------------------------------------------------------------------------------------------"""
 
 
 def error(msg=None, code=1, exc_info: bool = False) -> NoReturn:
@@ -30,17 +30,7 @@ def error(msg=None, code=1, exc_info: bool = False) -> NoReturn:
     sys.exit(code)
 
 
-"""-----------------------------------------------------------------------------------------------------------"""
-
-
-def warn(msg=None, exc_info: bool = False):
-    logger = logging.getLogger(whoiscaller())
-    if msg is not None:
-        logger.warning(msg, exc_info=exc_info)
-        sys.stderr.write(msg + "\n")
-
-
-"""-----------------------------------------------------------------------------------------------------------"""
+"""---------------------------------------------------------------------------------------------"""
 
 
 def conf_to_dict(configfile: str) -> dict:
@@ -74,7 +64,7 @@ def conf_to_dict(configfile: str) -> dict:
     return conf_dict
 
 
-"""-----------------------------------------------------------------------------------------------------------"""
+"""---------------------------------------------------------------------------------------------"""
 
 
 def nestedseek(node, key):
@@ -103,7 +93,7 @@ def nestedseek(node, key):
                 yield val
 
 
-"""-----------------------------------------------------------------------------------------------------------"""
+"""---------------------------------------------------------------------------------------------"""
 
 
 async def download_rpms(topurl, dir, session, tag, pkg):
@@ -127,9 +117,7 @@ async def download_rpms(topurl, dir, session, tag, pkg):
             logger.error(f"Permission error creating directory {pkgpath}")
             raise
 
-    """----------------------------------------------------------"""
-
-    def nvraGenerator(tag, pkg):
+    def nvra_generator(tag, pkg):
         try:
             info = session.getLatestRPMS(tag=tag, package=pkg)
         except koji.GenericError as e:
@@ -147,8 +135,6 @@ async def download_rpms(topurl, dir, session, tag, pkg):
         else:
             return None
 
-    """----------------------------------------------------------"""
-
     async def urlretrieve_async(url, filepath):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
@@ -164,9 +150,7 @@ async def download_rpms(topurl, dir, session, tag, pkg):
                             break
                         f.write(chunk)
 
-    """----------------------------------------------------------"""
-
-    nvra = nvraGenerator(tag, pkg)
+    nvra = nvra_generator(tag, pkg)
 
     if nvra is not None:
         for i in nvra:
@@ -181,7 +165,7 @@ async def download_rpms(topurl, dir, session, tag, pkg):
         return None
 
 
-"""-----------------------------------------------------------------------------------------------------------"""
+"""---------------------------------------------------------------------------------------------"""
 
 
 def resolvepath(path):
