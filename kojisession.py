@@ -38,7 +38,7 @@ class KojiSession(koji.ClientSession):
 
     """-----------------------------------------------------------------------------------------------------------"""
 
-    def __setup_authentication(self):
+    def _setup_authentication(self):
         if self.auth is not None:
             if self.auth == "ssl":
                 try:
@@ -79,7 +79,7 @@ class KojiSession(koji.ClientSession):
 
     def auth_login(self) -> bool:
         """Login to koji instance using SSL or Keberos authentication"""
-        self.__setup_authentication()
+        self._setup_authentication()
 
         if self.certs_set:
             if self.auth == "ssl":
