@@ -41,7 +41,7 @@ Building and waiting on packages is heavily IO-bounded operation. Thus we employ
 - [x] Create task observer
 - [x] Check NVR before calling build APIs
 - [x] Async task dispatcher
-- [ ] Email notifications for failed packages
+- [x] Email notifications for failed packages
 - [ ] Use comps to priortise builds based on groups
 - [ ] Build packages in exact order of dependencies
 
