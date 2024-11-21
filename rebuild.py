@@ -40,8 +40,8 @@ class Rebuild:
             if not any(builds):
                 return False
             else:
-                status = nestedseek(builds, "status")
-                if status == BuildState.COMPLETE:
+                status = list(nestedseek(builds, "status"))
+                if any(status) and status[0] == BuildState.COMPLETE:
                     return True
                 else:
                     return False
