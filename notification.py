@@ -34,19 +34,28 @@ class Notification:
         await self.client.send_message(message)
         await self.client.quit()
 
-    async def build_notify(self, pkg_status, task_url):
-        if task_url is None:
-            return
-        subj = "Koji Build System : "
-        subj += "FAILED" if pkg_status == BuildState.FAILED else "COMPLETED"
-        msg = f"<html><b><p>Check logs at <a href={task_url}>{task_url}</a></p></b></html>"
-        trigger = os.getenv("MAIL_TRIGGER")
+    async def build_notify(self, pkg, pkg_status, task_url):
 
-        if trigger == "fail":
+        def html_message(msg):
+            template = f"<html><b><p>{msg}</p></b></html>"
+            return template
+
+        status = "FAILED" if pkg_status == BuildState.FAILED else "COMPLETED"
+
+        subj = "Koji Build System Status: %s" % (status)
+
+        msg = f"Package {pkg} build {status}. "
+
+        if task_url is not None:
+            msg += f"Logs available at <b><a href={task_url}>{task_url}</a>"
+
+        msg = html_message(msg)
+
+        if self.trigger == "fail":
             flag = 1 if pkg_status == BuildState.FAILED else 0
-        elif trigger == "build":
+        elif self.trigger == "build":
             flag = 1 if pkg_status == BuildState.COMPLETE else 0
-        elif trigger == "all":
+        elif self.trigger == "all":
             flag = 1 if pkg_status == (BuildState.COMPLETE or BuildState.FAILED) else 0
         else:
             flag = 0
