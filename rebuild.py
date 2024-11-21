@@ -29,7 +29,7 @@ class Rebuild:
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         return False if (not any(builds)) else True
 
-    def _is_pkg_built_previously(self, pkg):
+    def _nvr_clash(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         if any(builds):
             nvr = list(nestedseek(builds, "nvr"))[0]
@@ -40,7 +40,7 @@ class Rebuild:
             if not any(builds):
                 return False
             else:
-                status = list(nestedseek(builds, "status"))
+                status = list(nestedseek(builds, "state"))
                 if any(status) and status[0] == BuildState.COMPLETE:
                     return True
                 else:
@@ -94,11 +94,13 @@ class Rebuild:
     async def rebuild_package(self, pkg) -> tuple[str, int, int]:
         task_id = -1
         result: BuildState = BuildState.BUILDING
+        self.logger.info(f"Attempting to build package {pkg}")
+
         if not self._is_pkg_available_upstream(pkg):
             self.logger.critical(f"Package: {pkg} is unavailable")
             return (pkg, task_id, BuildState.FAILED)
 
-        if self._is_pkg_built_previously(pkg):
+        if self._nvr_clash(pkg):
             self.logger.info(f"Package {pkg} is already built")
             return (pkg, task_id, BuildState.COMPLETE)
 
