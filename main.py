@@ -30,7 +30,7 @@ async def main():
     try:
         configfile = sys.argv[1]
     except IndexError:
-        configfile = os.path.expanduser("/".join([os.getcwd(), "config.yml"]))
+        configfile = os.path.expanduser("/".join([os.getcwd(), "config.yaml"]))
 
     config = configuration.Configuration(configfile)
 
