@@ -25,6 +25,7 @@ class Rebuild:
         except EnvironmentError:
             self.try_import = False
 
+    # TODO: Fall back to fxy tag if unavilable in updates tag
     def _is_pkg_available_upstream(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         return False if (not any(builds)) else True
@@ -68,7 +69,7 @@ class Rebuild:
             self.logger.info(f"Successfully imported package {pkg}")
         else:
             result = BuildState.FAILED
-            self.logger.info(f"Failed to import package {pkg}")
+            self.logger.critical(f"Failed to import package {pkg}")
         return result
 
     async def build_with_scm(self, pkg):
@@ -89,7 +90,7 @@ class Rebuild:
             elif res == TaskState.FAILED:
                 result = BuildState.FAILED
 
-        return (task_id, result)
+        return (pkg, task_id, result)
 
     async def rebuild_package(self, pkg) -> tuple[str, int, int]:
         task_id = -1
@@ -106,9 +107,12 @@ class Rebuild:
 
         if self.try_import:
             if self.upstream.is_pkg_noarch(self.tag_up, pkg):
-                result = await self._import_pkg(pkg)
-                return (pkg, task_id, result)
+                try:
+                    result = await self._import_pkg(pkg)
+                    return (pkg, task_id, result)
+                except:
+                    self.logger.critical("Failed to import package. Trying to build")
+                    pass
 
-        task_id, result = await self.build_with_scm(pkg)
-
-        return (pkg, task_id, result)
+        response = await self.build_with_scm(pkg)
+        return response
