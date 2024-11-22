@@ -25,7 +25,6 @@ class Rebuild:
         except EnvironmentError:
             self.try_import = False
 
-    # TODO: Fall back to fxy tag if unavilable in updates tag
     def _is_pkg_available_upstream(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         return False if (not any(builds)) else True
@@ -98,7 +97,9 @@ class Rebuild:
         self.logger.info(f"Attempting to build package {pkg}")
 
         if not self._is_pkg_available_upstream(pkg):
-            self.logger.critical(f"Package: {pkg} is unavailable")
+            self.logger.critical(
+                f"Package: {pkg} is unavailable under tag {self.tag_up}"
+            )
             return (pkg, task_id, BuildState.FAILED)
 
         if self._nvr_clash(pkg):
