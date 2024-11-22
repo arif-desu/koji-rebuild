@@ -72,9 +72,7 @@ class KojiSession(koji.ClientSession):
                     pass
 
         else:
-            self.logger.warning(
-                f'Unsupported authentication method "f{self.auth}" specified!'
-            )
+            self.logger.warning(f'Unsupported authentication method "{self.auth}"')
             self.certs_set = False
 
     def auth_login(self) -> bool:
@@ -180,7 +178,7 @@ class KojiSession(koji.ClientSession):
             return 1
 
         if self.getSessionInfo() is None:
-            if self.auth_login() == False:
+            if not self.auth_login():
                 self.logger.critical("You must be logged in to import packages")
                 return 1
 
