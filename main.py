@@ -9,6 +9,21 @@ from util import error
 import configuration
 from dispatcher import task_dispatcher
 from email_validator import validate_email, EmailNotValidError
+from datetime import datetime
+
+
+def config_logger():
+    dt = datetime.now()
+    dt = dt.strftime("%Y-%m-%d-%H:%M:%S")
+    logfile = os.getenv("LOGFILE", default="kojibuild.log")
+    idx = logfile.find(".")
+    logfile = "%s-%s%s" % (logfile[:idx], dt, logfile[idx:])
+
+    logging.basicConfig(
+        filename=logfile,
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s : %(message)s",
+    )
 
 
 async def main():
@@ -21,11 +36,7 @@ async def main():
 
     await config.setup()
 
-    logging.basicConfig(
-        filename=os.getenv("LOGFILE", default="kojibuild.log"),
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s : %(message)s",
-    )
+    config_logger()
 
     logger = logging.getLogger(__name__)
 
