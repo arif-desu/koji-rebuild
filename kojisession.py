@@ -216,14 +216,14 @@ class KojiSession(koji.ClientSession):
 
     """-----------------------------------------------------------------------------------------------------------"""
 
-    def get_total_hosts(self, arch):
-        """Get total number of hosts available for a specified architecture"""
-        return len(self.listHosts(arches=[arch], enabled=True, channelID="default"))
+    def get_total_hosts(self, arch: list | None = None):
+        """Get total number of hosts available for a specified architecture(s)"""
+        return len(self.listHosts(arches=arch, enabled=True, channelID="default"))
 
     """-----------------------------------------------------------------------------------------------------------"""
 
-    def get_ready_hosts(self, arch):
-        """Get number of hosts for specified architecture that are ready to take build job"""
+    def get_ready_hosts(self, arch: list | None = None):
+        """Get number of hosts for specified architecture(s) that are ready to take build job"""
         return len(
-            self.listHosts(arches=[arch], enabled=True, ready=True, channelID="default")
+            self.listHosts(arches=arch, enabled=True, ready=True, channelID="default")
         )
