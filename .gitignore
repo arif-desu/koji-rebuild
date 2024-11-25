@@ -5,7 +5,7 @@ __pycache__
 *.txt
 !requirements.txt
 *.json
-*.yml
 *.yaml
-!config.yml
+!config.yaml
 .env
+.ropeproject
