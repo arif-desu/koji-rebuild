@@ -19,7 +19,7 @@ class Configuration:
     def get_koji_instance(self, name):
         return self.parameters["instance"][name]
 
-    async def __email_setup(self):
+    async def _email_setup(self):
         try:
             os.environ["MAIL_NOTIFY"] = str(self.parameters["email"]["notify"])
         except KeyError:
@@ -115,7 +115,8 @@ class Configuration:
             os.environ["LOGFILE"] = str(
                 resolvepath(self.parameters["files"]["logfile"])
             )
+            os.environ["MAX_JOBS"] = self.parameters["max_jobs"]
         except KeyError:
             pass  # We ignore or set to defaults if not defined
 
-        await self.__email_setup()
+        await self._email_setup()
