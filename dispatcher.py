@@ -1,44 +1,73 @@
 import asyncio
 import logging
+from kojisession import KojiSession
 from notification import Notification
 from rebuild import Rebuild, BuildState
-from util import whoami
-import os
+from util import error, whoami
 
 
-async def task_dispatcher(
-    upstream, downstream, packages: list, notify: Notification | None = None
-):
-    logger = logging.getLogger(whoami())
-    task_queue = list()
-    max_jobs = int(os.getenv("MAX_JOBS", default=10))  # type: ignore
-    rebuild = Rebuild(upstream, downstream)
+class TaskDispatcher:
+    def __init__(
+        self,
+        upstream: KojiSession,
+        downstream: KojiSession,
+        packages: list,
+        notifications: Notification | None = None,
+        max_tasks: int = 10,
+    ) -> None:
+        self.task_queue = list()
+        self.max_tasks = max_tasks
+        self.logger = logging.getLogger(whoami())
+        self.downstream = downstream
+        self.packages = packages
+        self.notifications = notifications
+        self.rebuild = Rebuild(upstream, downstream)
 
-    def get_taskurl(session, task_id: int):
+    def _get_taskurl(self, task_id: int):
         if task_id <= 0:
             return None
-        url = "%s/%s?%s=%d" % (session.config["weburl"], "taskinfo", "taskID", task_id)
+        url = "%s/%s?%s=%d" % (
+            self.downstream.config["weburl"],
+            "taskinfo",
+            "taskID",
+            task_id,
+        )
         return url
 
-    while packages or task_queue:
-        while len(task_queue) < max_jobs and packages:
-            build_task = asyncio.create_task(rebuild.rebuild_package(packages.pop(0)))
-            task_queue.append(build_task)
+    def _append_tasks(self):
+        while len(self.task_queue) <= self.max_tasks and self.packages:
+            build_task = asyncio.create_task(
+                self.rebuild.rebuild_package(self.packages.pop(0))
+            )
+            self.task_queue.append(build_task)
 
-        done, _ = await asyncio.wait(task_queue, return_when=asyncio.FIRST_COMPLETED)
+    async def start(self):
+        while self.packages or self.task_queue:
+            self._append_tasks()
 
-        for task in done:
-            pkg, task_id, result = task.result()
+            if len(self.task_queue) == 0:
+                error("Task queue is empty!")
 
-            if result == BuildState.FAILED:
-                logger.critical("Package %s build failed!" % pkg)
-            elif result == BuildState.CANCELLED:
-                logger.info("Package %s build cancelled" % pkg)
-            elif result == BuildState.COMPLETE:
-                logger.info("Package %s build complete" % pkg)
+            done, _ = await asyncio.wait(
+                self.task_queue, return_when=asyncio.FIRST_COMPLETED
+            )
 
-            if isinstance(notify, Notification):
-                taskurl = get_taskurl(downstream, task_id)
-                await notify.build_notify(pkg, result, taskurl)
+            for task in done:
+                pkg, task_id, result = task.result()
 
-            task_queue.remove(task)
+                if result == BuildState.FAILED:
+                    self.logger.critical("Package %s build failed!" % pkg)
+                elif result == BuildState.CANCELLED:
+                    self.logger.info("Package %s build cancelled" % pkg)
+                elif result == BuildState.COMPLETE:
+                    self.logger.info("Package %s build complete" % pkg)
+
+                # Attempt email notification
+                if isinstance(self.notifications, Notification):
+                    taskurl = self._get_taskurl(task_id)
+                    async with asyncio.TaskGroup() as tg:
+                        tg.create_task(
+                            self.notifications.build_notify(pkg, result, taskurl)
+                        )
+
+                self.task_queue.remove(task)
