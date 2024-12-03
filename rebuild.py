@@ -27,7 +27,8 @@ class Rebuild:
         self.pkgimport = pkgimport
 
         try:
-            self.downstream.auth_login()
+            if self.downstream.getSessionInfo() is None:
+                self.downstream.auth_login()
         except koji.GenericError:
             raise
 
@@ -54,7 +55,6 @@ class Rebuild:
         else:
             return False
 
-    # TODO: Check login
     async def _import_pkg(self, pkg):
         topurl = os.getenv("IMPORT_URL", "https://kojipkgs.fedoraproject.org/packages")
         download_dir = os.getenv("IMPORT_DIR", "~/.rpms")
