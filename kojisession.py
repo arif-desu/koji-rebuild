@@ -14,14 +14,14 @@ class KojiSession(koji.ClientSession):
         """Initialize a koji session object
         @param: instance - dictionary object containing koji instance information
         """
-        self.instance = instance
+        self.info = instance
         self.logger = logging.getLogger("kojisession")
 
         try:
             configfile = resolvepath(instance["config"])
             self.config = conf_to_dict(str(configfile))
-        except:
-            error(exc_info=True)
+        except FileNotFoundError:
+            error("Koji config file not found!")
 
         try:
             self.server = str(self.config["server"])
@@ -34,7 +34,7 @@ class KojiSession(koji.ClientSession):
             self.auth = None
 
         # Call parent class constructor
-        koji.ClientSession.__init__(self, baseurl=self.server)
+        super().__init__(baseurl=self.server)
 
     """-----------------------------------------------------------------------------------------------------------"""
 
@@ -112,7 +112,7 @@ class KojiSession(koji.ClientSession):
         except koji.GenericError as e:
             self.logger.error(str(e).splitlines()[-1])
         except IndexError:
-            self.logger.critical("No package %s in tag %s" % (pkg, tag))
+            self.logger.critical("No package %s associated with tag %s" % (pkg, tag))
         else:
             build_id = list(nestedseek(pkginfo, key="build_id"))[0]
 
