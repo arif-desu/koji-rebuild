@@ -2,7 +2,6 @@ import os
 import sys
 import logging
 import configparser
-from typing import NoReturn
 import aiohttp
 import inspect
 import koji
@@ -22,12 +21,22 @@ def whoiscaller():
 """---------------------------------------------------------------------------------------------"""
 
 
-def error(msg=None, code=1, exc_info: bool = False) -> NoReturn:
+class GenericException(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(message)
+
+    def __str__(self):
+        return f"{self.message}"
+
+
+def error(msg: str, info: bool = False):
     logger = logging.getLogger(whoiscaller())
     if msg is not None:
-        logger.error(msg, exc_info=exc_info)
+        logger.error(msg, exc_info=info)
         sys.stderr.write(msg + "\n")
-    sys.exit(code)
+
+    raise GenericException(msg)
 
 
 """---------------------------------------------------------------------------------------------"""
@@ -168,11 +177,10 @@ async def download_rpms(topurl, dir, session, tag, pkg):
 """---------------------------------------------------------------------------------------------"""
 
 
-def resolvepath(path):
+def resolvepath(path: str) -> str:
     """Resolves relative path specified as environment variable."""
-    if path is None:
-        return None
 
+    assert path is not None
     variables = {"${HOME}": os.path.expanduser("~"), "${PWD}": os.getcwd()}
 
     while "${" in path:
