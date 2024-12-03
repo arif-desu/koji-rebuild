@@ -4,6 +4,7 @@ import logging
 from util import download_rpms, nestedseek
 from enum import IntEnum
 import os
+import koji
 
 
 class BuildState(IntEnum):
@@ -24,6 +25,11 @@ class Rebuild:
         self.tag_down = downstream.info["tag"]
         self.logger = logging.getLogger(__name__)
         self.pkgimport = pkgimport
+
+        try:
+            self.downstream.auth_login()
+        except koji.GenericError:
+            raise
 
     def _is_pkg_available_upstream(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
@@ -98,6 +104,9 @@ class Rebuild:
                 f"Package: {pkg} is unavailable under tag {self.tag_up}"
             )
             return (pkg, task_id, BuildState.FAILED)
+
+        if not self.downstream.checkTagPackage(self.tag_down, pkg):
+            self.downstream.packageListAdd(taginfo=self.tag_down, pkginfo=pkg)
 
         if self._nvr_clash(pkg):
             self.logger.info(f"Package {pkg} is already built")
