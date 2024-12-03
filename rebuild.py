@@ -48,9 +48,9 @@ class Rebuild:
         else:
             return False
 
-    # FIXME: Check login and default dir
+    # TODO: Check login
     async def _import_pkg(self, pkg):
-        topurl = os.getenv("IMPORT_URL", "https://kojipkgs.fedoraproject.org")
+        topurl = os.getenv("IMPORT_URL", "https://kojipkgs.fedoraproject.org/packages")
         download_dir = os.getenv("IMPORT_DIR", "~/.rpms")
 
         pkgpath = None
