@@ -1,6 +1,7 @@
+from kojisession import KojiSession
 from tasks import watch_task, TaskState
 import logging
-from util import download_rpms, error, nestedseek
+from util import download_rpms, nestedseek
 from enum import IntEnum
 import os
 
@@ -14,16 +15,15 @@ class BuildState(IntEnum):
 
 
 class Rebuild:
-    def __init__(self, upstream, downstream) -> None:
+    def __init__(
+        self, upstream: KojiSession, downstream: KojiSession, pkgimport: bool = False
+    ) -> None:
         self.upstream = upstream
         self.downstream = downstream
-        self.tag_up = upstream.instance["tag"]
-        self.tag_down = downstream.instance["tag"]
+        self.tag_up = upstream.info["tag"]
+        self.tag_down = downstream.info["tag"]
         self.logger = logging.getLogger(__name__)
-        try:
-            self.try_import = True if os.getenv("IMPORT_ATTEMPT") == "True" else False
-        except EnvironmentError:
-            self.try_import = False
+        self.pkgimport = pkgimport
 
     def _is_pkg_available_upstream(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
@@ -48,13 +48,10 @@ class Rebuild:
         else:
             return False
 
-    # FIXME: Check login
+    # FIXME: Check login and default dir
     async def _import_pkg(self, pkg):
-        try:
-            topurl = os.getenv("IMPORT_TOPURL")
-            download_dir = os.getenv("IMPORT_DIR")
-        except EnvironmentError:
-            error("Error importing package", exc_info=True)
+        topurl = os.getenv("IMPORT_URL", "https://kojipkgs.fedoraproject.org")
+        download_dir = os.getenv("IMPORT_DIR", "~/.rpms")
 
         pkgpath = None
 
@@ -78,7 +75,7 @@ class Rebuild:
 
         if scmurl is not None:
             task_id = self.downstream.build(
-                src=scmurl, target=self.downstream.instance["target"]
+                src=scmurl, target=self.downstream.info["target"]
             )
             res = await watch_task(self.downstream, task_id)
 
@@ -106,12 +103,12 @@ class Rebuild:
             self.logger.info(f"Package {pkg} is already built")
             return (pkg, task_id, BuildState.COMPLETE)
 
-        if self.try_import:
+        if self.pkgimport:
             if self.upstream.is_pkg_noarch(self.tag_up, pkg):
                 try:
                     result = await self._import_pkg(pkg)
                     return (pkg, task_id, result)
-                except:
+                except TimeoutError:
                     self.logger.critical("Failed to import package. Trying to build")
                     pass
 
