@@ -1,4 +1,6 @@
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 import aiosmtplib
 import os
 import keyring
@@ -24,11 +26,22 @@ class Notification:
             start_tls=start_tls,
         )
 
-    async def send_email(self, subject: str, msg: str):
-        message = MIMEText(msg, "html", "utf-8")
+    async def send_email(self, subject: str, msg: str, attachment: list | None = None):
+        message = MIMEMultipart()
         message["From"] = str(self.senderid)
         message["To"] = self.recipients
         message["Subject"] = subject
+
+        message.attach(MIMEText(msg, "html", "utf-8"))
+
+        if attachment is not None:
+            for att in attachment:
+                with open(att, "rb") as f:
+                    part = MIMEApplication(f.read())
+                part["Content-Disposition"] = (
+                    'attachment; filename="%s"' % os.path.basename(att)
+                )
+                message.attach(part)
 
         await self.client.connect()
         await self.client.send_message(message)
