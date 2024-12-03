@@ -2,38 +2,37 @@ instance:
   upstream:
     config: ${HOME}/.koji/config.d/fedora.conf
     target: f40
-    # tag used to fetch associated packages. if null, the destination tag mapped into target will be used
-    tag: f40
+    tag: f40 #if tag is null, the destination tag mapped into target will be used
 
   downstream:
     config: ${HOME}/.koji/config.d/local.conf
     target: f40
-    tag: f40 # Used as destination tag
+    tag: f40 # destination tag
 
 # Maximum number of tasks to be queued in koji. If undefined, defaults to 10
-max_jobs: 16
+max_tasks: 16
 
 pkg_import:
   attempt: yes
-  topurl: "https://kojipkgs.fedoraproject.org/packages"
+  topurl: https://kojipkgs.fedoraproject.org/packages
   dir: ${HOME}/.rpms
 
 # files to fetch and store info
 files:
-  # list specifying packages to build. If null, all packages associated with upstream tag will be attempted
+  # list specifying packages to build.
   buildlist: ${PWD}/buildlist.txt
   # list specifying packages to ignore while building
   ignorelist: ${PWD}/ignorelist.txt
   # path to file where application logs would be stored
   logfile: ${PWD}/kojibuild.log
 
-email:
+notifications:
   notify: no
-  # when to notify - "success", "fail", "all"
-  trigger: "fail"
+  # notification event - "success", "fail", "all"
+  trigger: fail
   server: smtp.example.com
   port: 587
   sender_id: kojiadmin@example.com
-  recipients: ["kojiuser@example.com"]
+  recipients: [kojiuser@example.com]
   # authentication - "none", "tls", "start_tls"
-  auth: "start_tls"
+  auth: none
