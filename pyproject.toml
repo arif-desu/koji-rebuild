@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "koji-rebuild"
+version = "0.1.0"
+description = "An application to automate package rebuilds using Koji Build System"
+authors = ["Arif B <arif.dev@pm.me>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+aiohttp = "^3.10.10"
+aiosmtplib = "^3.0.2"
+email_validator = "^2.2.0"
+keyring = "^25.5.0"
+koji = "1.34.0"
+PyYAML = "^6.0.2"
+click = "^8.1.7"
+
+[tool.poetry.scripts]
+koji-rebuild = "koji_rebuild.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
