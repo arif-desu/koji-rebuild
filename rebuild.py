@@ -23,7 +23,7 @@ class Rebuild:
         self.downstream = downstream
         self.tag_up = upstream.info["tag"]
         self.tag_down = downstream.info["tag"]
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("rebuild")
         self.pkgimport = pkgimport
 
         try:

@@ -116,7 +116,7 @@ class Configuration:
 class Setup(Configuration):
     def __init__(self, configfile) -> None:
         super().__init__(configfile)
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("setup")
         self.setup()
 
     def setup_logger(self, append_date: bool = False):
