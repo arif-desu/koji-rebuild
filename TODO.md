@@ -6,6 +6,7 @@
 - [x] Email notifications for failed packages
 - [x] Send notification when program finishes/aborts
 - [x] By default create log file appended with date and time
+- [ ] Run main app in background
 - [ ] Deferred notifications
 - [ ] Build packages in exact order of dependencies
 - [ ] Incorporate comps
