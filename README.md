@@ -6,13 +6,38 @@ The aim of this project is to fetch package and tag info from upstream Koji inst
 
 ---
 
-## Getting started
+## Setup Koji infrastructure
 
 You can deploy your own Koji infrastructure following this [guide](https://docs.pagure.org/koji/server_howto/).
 
 Alternatively you may use the shell scripts [here](https://github.com/arif-desu/koji-setup).
 
-Then modify the [config.yaml](./config.yaml) file to specify the build parameters.
+## Requirements
+- `python3.11+`
+- `poetry`
+
+## Installation
+
+### Clone the repository
+```sh
+git clone https://github.com/arif-desu/koji-build-automation
+```
+### Install
+**It is recommended that this package is used in a virtual environment.**
+```sh
+poetry shell
+```
+
+```sh
+poetry install
+```
+
+## Usage
+```sh
+koji-rebuild CONFIGFILE
+```
+
+The `CONFIGFILE` is a YAML formatted file. See [config.yaml](./config.yaml) for reference.
 
 ---
 
