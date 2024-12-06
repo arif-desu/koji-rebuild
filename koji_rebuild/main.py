@@ -1,24 +1,23 @@
-#! usr/bin/env python3
-import sys
 import logging
 import asyncio
+import click
 
-import util
-from setup import Setup
-from notification import Notification
-from dispatcher import TaskDispatcher
+from .util import GenericException
+from .setup import Setup
+from .notification import Notification
+from .dispatcher import TaskDispatcher
 
 
-if __name__ == "__main__":
-    try:
-        configfile = sys.argv[1]
-    except IndexError:
-        sys.exit("YAML config file must specified as command-line argument!")
-
+@click.command("koji-rebuild")
+@click.argument(
+    "configfile", type=click.Path(exists=True, dir_okay=False, resolve_path=True)
+)
+def main(configfile):
+    """
+    CONFIGFILE: YAML formatted configuration file
+    """
     config = Setup(configfile)
-
     logger = logging.getLogger("main")
-
     logfile = config.setup_logger(append_date=True)
     upstream = config.get_koji_session("upstream")
     downstream = config.get_koji_session("downstream")
@@ -34,7 +33,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         msg = "Received SIGINT from keyboard"
         logger.exception(msg)
-    except util.GenericException as e:
+    except GenericException as e:
         msg = e.__str__()
     else:
         msg = "All packages built!"
@@ -46,3 +45,7 @@ if __name__ == "__main__":
                 )
             )
         print(msg)
+
+
+if __name__ == "__main__":
+    main()

@@ -5,7 +5,7 @@ import string
 import random
 import logging
 import shutil
-from util import conf_to_dict, nestedseek, error, resolvepath
+from .util import conf_to_dict, nestedseek, error, resolvepath
 
 
 class KojiSession(koji.ClientSession):

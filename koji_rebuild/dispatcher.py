@@ -1,9 +1,9 @@
 import asyncio
 import logging
-from kojisession import KojiSession
-from notification import Notification
-from rebuild import Rebuild, BuildState
-from util import error, whoami
+from .kojisession import KojiSession
+from .notification import Notification
+from .rebuild import Rebuild, BuildState
+from .util import error, whoami
 
 
 class TaskDispatcher:

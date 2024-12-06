@@ -1,7 +1,7 @@
-from kojisession import KojiSession
-from tasks import watch_task, TaskState
+from .kojisession import KojiSession
+from .tasks import watch_task, TaskState
 import logging
-from util import download_rpms, nestedseek
+from .util import download_rpms, nestedseek
 from enum import IntEnum
 import os
 import koji

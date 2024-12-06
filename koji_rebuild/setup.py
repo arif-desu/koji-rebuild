@@ -7,9 +7,9 @@ import aiosmtplib
 import keyring
 from getpass import getpass
 
-from kojisession import KojiSession
-from notification import Notification
-from util import error, resolvepath
+from .kojisession import KojiSession
+from .notification import Notification
+from .util import error, resolvepath
 from email_validator import validate_email, EmailNotValidError
 from datetime import datetime
 

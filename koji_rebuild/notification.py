@@ -4,7 +4,7 @@ from email.mime.application import MIMEApplication
 import aiosmtplib
 import os
 import keyring
-from rebuild import BuildState
+from .rebuild import BuildState
 
 
 class Notification:
