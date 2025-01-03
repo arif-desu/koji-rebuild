@@ -106,7 +106,11 @@ class Rebuild:
             return (pkg, task_id, BuildState.FAILED)
 
         if not self.downstream.checkTagPackage(self.tag_down, pkg):
-            self.downstream.packageListAdd(taginfo=self.tag_down, pkginfo=pkg)
+            self.downstream.packageListAdd(
+                taginfo=self.tag_down,
+                pkginfo=pkg,
+                owner=self.downstream.getLoggedInUser()["name"],
+            )
 
         if self._nvr_clash(pkg):
             self.logger.info(f"Package {pkg} is already built")
