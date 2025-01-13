@@ -9,5 +9,6 @@ __pycache__
 !config.yaml
 *.lock
 test.py
+dist
 .env
 .ropeproject
