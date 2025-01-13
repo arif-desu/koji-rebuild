@@ -34,7 +34,24 @@ class Rebuild:
 
     def _is_pkg_available_upstream(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
-        return False if (not any(builds)) else True
+        if any(builds):
+            return True
+        else:
+            inherit = self.upstream.getInheritance(tag=self.tag_up)
+            parent = list(nestedseek(inherit, "name"))[0]
+            if not any(parent):
+                return False
+            else:
+                builds = self.upstream.getLatestRPMS(parent, pkg)
+
+            if not any(builds):
+                return False
+            else:
+                self.logger.info(
+                    f"Package is available under parent tag. Switching to tag {parent} for package {pkg}"
+                )
+                self.tag_up = parent
+                return True
 
     def _nvr_clash(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
