@@ -146,12 +146,11 @@ class KojiSession(koji.ClientSession):
 
     """-----------------------------------------------------------------------------------------------------------"""
 
-    def get_package_list(self, tag):
+    def get_package_list(self, tag) -> None | list[str]:
         res = self.listPackages(tagID=tag)
         if res is not None:
-            packages = nestedseek(res, "package_name")
-            for pkg in packages:
-                yield pkg
+            packages = list(nestedseek(res, "package_name"))
+            return packages
         else:
             self.logger.info(f"No package tagged under tag : {tag}")
             return None
