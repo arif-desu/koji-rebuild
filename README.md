@@ -23,13 +23,14 @@ Alternatively you may use the shell scripts [here](https://github.com/arif-desu/
 git clone https://github.com/arif-desu/koji-build-automation
 ```
 ### Install
-**It is recommended that this package is used in a virtual environment.**
+
+**Currently python koji modules from PyPI do not work as intended. It is thus recommended to install koji as an rpm package, build the module and install it**
 ```sh
-poetry shell
+poetry build
 ```
 
 ```sh
-poetry install
+pip install dist/*.whl
 ```
 
 ## Usage
