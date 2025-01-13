@@ -1,4 +1,4 @@
-# Koji Build Automation
+# Koji Rebuild
 
 A program to interact with Koji server(s) to build RPM packages.
 
