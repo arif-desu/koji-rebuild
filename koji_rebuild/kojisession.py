@@ -190,7 +190,8 @@ class KojiSession(koji.ClientSession):
                 self.importRPM(path=serverdir, basename=rpm)
                 self.logger.info(f"Imported {rpm}")
             except koji.GenericError as e:
-                error("Error importing: %s" % str(e).splitlines()[-1])
+                self.logger.error("Error importing: %s" % str(e).splitlines()[-1])
+                return -1
 
         untagged = self.untaggedBuilds()
 
