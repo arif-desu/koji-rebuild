@@ -15,9 +15,9 @@ from datetime import datetime
 
 
 class Configuration:
-    mail: dict[str, str | int | None]
+    mail = dict()
     service = "kojibuild"
-    user = "koji"
+    user = "kojibuild"
 
     def __init__(self, configfile) -> None:
         configfile = os.path.expanduser(configfile)
@@ -36,11 +36,11 @@ class Configuration:
                 return
 
             try:
-                self.mail["trigger"] = str(self.parameters["notification"]["trigger"])
+                self.mail["trigger"] = str(self.parameters["notifications"]["trigger"])
                 self.mail["server"] = str(self.parameters["notifications"]["server"])
                 self.mail["userid"] = str(self.parameters["notifications"]["sender_id"])
-            except KeyError:
-                print("Email parameter(s) undefined")
+            except KeyError as e:
+                print(f"Email parameter(s) undefined: {e}")
                 sys.exit(1)
 
             try:
@@ -50,22 +50,22 @@ class Configuration:
                 sys.exit(1)
 
             try:
-                self.mail["port"] = self.parameters["email"]["port"]
+                self.mail["port"] = self.parameters["notifications"]["port"]
             except KeyError:
                 self.mail["port"] = 587
 
             try:
-                self.mail["auth"] = str(self.parameters["email"]["auth"])
+                self.mail["auth"] = str(self.parameters["notifications"]["auth"])
             except KeyError:
                 self.mail["auth"] = None
             finally:
+                print(f"mail auth = {self.mail["auth"]}")
                 if self.mail["auth"] is not None:
                     valid_auth = ["tls", "start_tls", "starttls"]
-                    if self.mail_auth.lower() not in valid_auth:  # type: ignore
+                    if self.mail["auth"].lower() not in valid_auth:  # type: ignore
                         print(f'Invalid authentication method "{self.mail["auth"]}"')
                         self.mail_auth = None
                         print("Email authentication set to None")
-
             # Save password in keyring
             keyring.set_password(
                 self.service,
@@ -204,20 +204,28 @@ class Setup(Configuration):
 
     def setup_notifications(self) -> Notification | None:
         if self.notify is True:
-            recipients = self.parameters["email"]["recipients"]
+            recipients = self.parameters["notifications"]["recipients"]
             if not any(recipients):
                 self.logger.warning(
                     "Email notifications turned on but no recipients specified! Notifications will be turned off"
                 )
                 notify = None
             else:
-                for mail in recipients:
+                for mailid in recipients:
                     try:
-                        validate_email(mail)
+                        print(f"Validating email id : {mailid}")
+                        validate_email(mailid)
                     except EmailNotValidError:
-                        error(f"Invalid email address {mail}")
+                        error(f"Invalid email address {mailid}")
                 subs = ", ".join(recipients)
-                notify = Notification(subs)
+                notify = Notification(
+                    self.mail["server"],
+                    self.mail["port"],
+                    self.mail["auth"],
+                    self.mail["userid"],
+                    self.mail["trigger"],
+                    subs,
+                )
         else:
             notify = None
         return notify

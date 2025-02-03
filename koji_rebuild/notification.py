@@ -9,19 +9,19 @@ from .rebuild import BuildState
 
 class Notification:
 
-    def __init__(self, recipients: str) -> None:
+    def __init__(self, server, port, auth, sender, trigger, recipients: str) -> None:
         self.recipients = recipients
-        self.senderid = str(os.getenv("MAIL_USERID"))
-        self.trigger = os.getenv("MAIL_TRIGGER")
+        self.senderid = sender
+        self.trigger = trigger
 
-        tls = True if os.getenv("MAIL_AUTH") == "tls" else False
-        start_tls = True if os.getenv("MAIL_AUTH") == "start_tls" else False
+        tls = True if auth == "tls" else False
+        start_tls = True if (auth == "start_tls" or auth == "starttls") else False
 
         self.client = aiosmtplib.SMTP(
-            hostname=str(os.getenv(("MAIL_SERVER"))),
-            port=int(os.getenv("MAIL_PORT")),  # type:ignore
-            username=str(os.getenv("MAIL_USERID")),
-            password=keyring.get_password("kojibuild", str(os.getenv("USER"))),
+            hostname=server,
+            port=port,
+            username=sender,
+            password=keyring.get_password("kojibuild", "kojibuild"),
             use_tls=tls,
             start_tls=start_tls,
         )
