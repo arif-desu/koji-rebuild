@@ -83,7 +83,10 @@ class Configuration:
 
     def _set_pkg_imports(self):
         try:
-            self.pkgimport = str(self.parameters["pkg_import"]["attempt"])
+            attempt = str(self.parameters["pkg_import"]["attempt"])
+            self.pkgimport = (
+                True if (attempt.lower() == "true" or attempt.lower == "yes") else False
+            )
         except KeyError:
             self.pkgimport = False
 

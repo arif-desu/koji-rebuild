@@ -14,6 +14,7 @@ class TaskDispatcher:
         packages: list,
         notifications: Notification | None = None,
         max_tasks: int = 10,
+        pkgimport: bool = False,
     ) -> None:
         self.task_queue = list()
         self.max_tasks = max_tasks
@@ -21,7 +22,7 @@ class TaskDispatcher:
         self.downstream = downstream
         self.packages = packages
         self.notifications = notifications
-        self.rebuild = Rebuild(upstream, downstream)
+        self.rebuild = Rebuild(upstream, downstream, pkgimport)
 
     def _get_taskurl(self, task_id: int):
         if task_id <= 0:
