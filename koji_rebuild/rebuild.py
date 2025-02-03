@@ -83,9 +83,8 @@ class Rebuild:
             topurl, download_dir, self.upstream, self.tag_up, pkg
         )
         if pkgpath:
-            self.downstream.importPackage(pkgpath, self.tag_down, pkg)
-            result = BuildState.COMPLETE
-            self.logger.info(f"Successfully imported package {pkg}")
+            ret = self.downstream.importPackage(pkgpath, self.tag_down, pkg)
+            result = BuildState.COMPLETE if ret else BuildState.FAILED
         else:
             result = BuildState.FAILED
             self.logger.critical(f"Failed to import package {pkg}")
