@@ -37,7 +37,7 @@ class Rebuild:
         if any(builds):
             return True
         else:
-            inherit = self.upstream.getInheritance(tag=self.tag_up)
+            inherit = self.upstream.getInheritanceData(tag=self.tag_up)
             parent = list(nestedseek(inherit, "name"))[0]
             if not any(parent):
                 return False
