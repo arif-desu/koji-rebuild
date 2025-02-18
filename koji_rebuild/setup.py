@@ -7,7 +7,7 @@ import aiosmtplib
 import keyring
 from getpass import getpass
 
-from .kojisession import KojiSession
+from .session import KojiSession
 from .notification import Notification
 from .util import error, resolvepath
 from email_validator import validate_email, EmailNotValidError
@@ -87,6 +87,8 @@ class Configuration:
             self.pkgimport = (
                 True if (attempt.lower() == "true" or attempt.lower == "yes") else False
             )
+            if self.pkgimport:
+                os.environ["FAST_TRACK"] = "1"
         except KeyError:
             self.pkgimport = False
 
@@ -104,7 +106,7 @@ class Configuration:
 
     def setup(self):
         try:
-            self.max_tasks = self.parameters["max_tasks"]
+            os.environ["MAX_TASKS"] = self.parameters["max_tasks"]
         except KeyError:
             pass
         self._set_pkg_imports()

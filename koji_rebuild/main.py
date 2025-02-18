@@ -23,12 +23,8 @@ def main(configfile):
     downstream = config.get_koji_session("downstream")
     packages = config.get_packagelist()
     notify = config.setup_notifications()
-    max_jobs = config.max_tasks
-    pkgimport = config.pkgimport
 
-    dispatcher = TaskDispatcher(
-        upstream, downstream, packages, notify, max_jobs, pkgimport
-    )
+    dispatcher = TaskDispatcher(upstream, downstream, packages, notify)
 
     msg = str()
     try:

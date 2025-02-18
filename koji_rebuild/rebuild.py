@@ -1,14 +1,15 @@
-from .kojisession import KojiSession
+from .session import KojiSession
 from .tasks import watch_task, TaskState
+from .package import PackageHelper
 import logging
-from .util import download_rpms, nestedseek
+from .util import nestedseek
 from enum import IntEnum
 import os
 import koji
 
 
 class BuildState(IntEnum):
-    BUILDING = 0
+    OPEN = 0
     COMPLETE = 1
     DELETED = 2
     FAILED = 3
@@ -16,15 +17,14 @@ class BuildState(IntEnum):
 
 
 class Rebuild:
-    def __init__(
-        self, upstream: KojiSession, downstream: KojiSession, pkgimport: bool = False
-    ) -> None:
+    def __init__(self, upstream: KojiSession, downstream: KojiSession) -> None:
+        self.logger = logging.getLogger("rebuild")
         self.upstream = upstream
         self.downstream = downstream
         self.tag_up = upstream.info["tag"]
         self.tag_down = downstream.info["tag"]
-        self.logger = logging.getLogger("rebuild")
-        self.pkgimport = pkgimport
+        self.fasttrack = bool(int(os.getenv("FAST_TRACK", default="0")))
+        self.pkg_util = PackageHelper()
 
         try:
             if self.downstream.getSessionInfo() is None:
@@ -32,28 +32,7 @@ class Rebuild:
         except koji.GenericError:
             raise
 
-    def _is_pkg_available_upstream(self, pkg):
-        builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
-        if any(builds):
-            return True
-        else:
-            inherit = self.upstream.getInheritanceData(tag=self.tag_up)
-            parent = list(nestedseek(inherit, "name"))[0]
-            if not any(parent):
-                return False
-            else:
-                builds = self.upstream.getLatestRPMS(parent, pkg)
-
-            if not any(builds):
-                return False
-            else:
-                self.logger.info(
-                    f"Package is available under parent tag. Switching to tag {parent} for package {pkg}"
-                )
-                self.tag_up = parent
-                return True
-
-    def _nvr_clash(self, pkg):
+    def nvr_clash(self, pkg):
         builds = self.upstream.getLatestRPMS(self.tag_up, pkg)
         if any(builds):
             nvr = list(nestedseek(builds, "nvr"))[0]
@@ -72,20 +51,14 @@ class Rebuild:
         else:
             return False
 
-    async def _import_pkg(self, pkg):
-        topurl = os.getenv(
-            "IMPORT_TOPURL", "https://kojipkgs.fedoraproject.org/packages"
-        )
-        download_dir = os.getenv("IMPORT_DIR", "~/.rpms")
+    async def fetch_pkg(self, pkg):
+        pkgpath = await self.pkg_util.retrieveRPMs(self.upstream, self.tag_up, pkg)
 
-        pkgpath = None
-
-        # download package rpms from upstream
-        pkgpath = await download_rpms(
-            topurl, download_dir, self.upstream, self.tag_up, pkg
-        )
         if pkgpath:
-            ret = self.downstream.importPackage(pkgpath, self.tag_down, pkg)
+            # TODO: Spawn thread instead of async
+            ret = self.pkg_util.import_package(
+                self.downstream, pkgpath, self.tag_down, pkg
+            )
             result = BuildState.COMPLETE if ret else BuildState.FAILED
         else:
             result = BuildState.FAILED
@@ -93,9 +66,9 @@ class Rebuild:
         return result
 
     async def build_with_scm(self, pkg):
-        result = BuildState.FAILED
+        result = BuildState.OPEN
         task_id = -1
-        scmurl = self.upstream.getSCM_URL(self.tag_up, pkg)
+        scmurl = self.pkg_util.getSCM_URL(self.upstream, self.tag_up, pkg)
 
         if scmurl is not None:
             task_id = self.downstream.build(
@@ -114,14 +87,17 @@ class Rebuild:
 
     async def rebuild_package(self, pkg) -> tuple[str, int, int]:
         task_id = -1
-        result: BuildState = BuildState.BUILDING
-        self.logger.info(f"Attempting to build package {pkg}")
+        result: BuildState = BuildState.OPEN
 
-        if not self._is_pkg_available_upstream(pkg):
+        tag = self.pkg_util.is_available(self.upstream, self.tag_up, pkg)
+
+        if tag is None:
             self.logger.critical(
                 f"Package: {pkg} is unavailable under tag {self.tag_up}"
             )
             return (pkg, task_id, BuildState.FAILED)
+        else:
+            self.tag_up = tag
 
         if not self.downstream.checkTagPackage(self.tag_down, pkg):
             self.downstream.packageListAdd(
@@ -130,18 +106,20 @@ class Rebuild:
                 owner=self.downstream.getLoggedInUser()["name"],
             )
 
-        if self._nvr_clash(pkg):
+        if self.nvr_clash(pkg):
             self.logger.info(f"Package {pkg} is already built")
             return (pkg, task_id, BuildState.COMPLETE)
 
-        if self.pkgimport:
-            if self.upstream.is_pkg_noarch(self.tag_up, pkg):
+        if self.fasttrack:
+            if self.pkg_util.is_noarch(self.upstream, self.tag_up, pkg):
+                self.logger.info(f"Attempting to import package {pkg}")
                 try:
-                    result = await self._import_pkg(pkg)
+                    result = await self.fetch_pkg(pkg)
                     return (pkg, task_id, result)
                 except TimeoutError:
-                    self.logger.critical("Failed to import package. Trying to build")
-                    pass
+                    raise
+
+        self.logger.info(f"Building package {pkg}")
 
         response = await self.build_with_scm(pkg)
         return response

@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from .kojisession import KojiSession
+import os
+from .session import KojiSession
 from .notification import Notification
 from .rebuild import Rebuild, BuildState
 from .util import error, whoami
@@ -13,16 +14,15 @@ class TaskDispatcher:
         downstream: KojiSession,
         packages: list,
         notifications: Notification | None = None,
-        max_tasks: int = 10,
-        pkgimport: bool = False,
     ) -> None:
         self.task_queue = list()
-        self.max_tasks = max_tasks
+        self.max_jobs = int(os.getenv("MAX_TASKS", default="10"))
         self.logger = logging.getLogger(whoami())
         self.downstream = downstream
         self.packages = packages
         self.notifications = notifications
-        self.rebuild = Rebuild(upstream, downstream, pkgimport)
+
+        self.rebuild = Rebuild(upstream, downstream)
 
     def _get_taskurl(self, task_id: int):
         if task_id <= 0:
@@ -35,8 +35,8 @@ class TaskDispatcher:
         )
         return url
 
-    def _append_tasks(self):
-        while len(self.task_queue) <= self.max_tasks and self.packages:
+    def _add_tasks(self):
+        while len(self.task_queue) <= self.max_jobs and self.packages:
             build_task = asyncio.create_task(
                 self.rebuild.rebuild_package(self.packages.pop(0))
             )
@@ -44,7 +44,7 @@ class TaskDispatcher:
 
     async def start(self):
         while self.packages or self.task_queue:
-            self._append_tasks()
+            self._add_tasks()
 
             if len(self.task_queue) == 0:
                 error("Task queue is empty!")

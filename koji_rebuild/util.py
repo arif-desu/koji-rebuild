@@ -2,9 +2,7 @@ import os
 import sys
 import logging
 import configparser
-import aiohttp
 import inspect
-import koji
 
 
 def whoami():
@@ -100,78 +98,6 @@ def nestedseek(node, key):
         for j in node.values():
             for val in nestedseek(j, key):
                 yield val
-
-
-"""---------------------------------------------------------------------------------------------"""
-
-
-async def download_rpms(topurl, dir, session, tag, pkg):
-    """
-    Retrieves RPM packages from server
-    @param topurl - rpm
-    @param dir - parent directory path to store package rpms
-    @param: session - KojiSession object
-    @param: tag - tag reference for package
-    @param: pkg - package to be downloaded
-
-    @return - path to package download directory
-    """
-    logger = logging.getLogger(whoami())
-    pkgpath = "/".join([dir, pkg])
-
-    if not os.path.exists(pkgpath):
-        try:
-            os.makedirs(pkgpath, exist_ok=True)
-        except PermissionError:
-            logger.error(f"Permission error creating directory {pkgpath}")
-            raise
-
-    def nvra_generator(tag, pkg):
-        try:
-            info = session.getLatestRPMS(tag=tag, package=pkg)
-        except koji.GenericError as e:
-            logger.critical(str(e).splitlines()[-1])
-            return None
-
-        if any(info):
-            name = nestedseek(info, "name")
-            version = nestedseek(info, "version")
-            release = nestedseek(info, "release")
-            arch = nestedseek(info, "arch")
-
-            for n, v, r, a in zip(name, version, release, arch):
-                yield (n, v, r, a)
-        else:
-            return None
-
-    async def urlretrieve_async(url, filepath):
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                try:
-                    assert response.status == 200
-                except AssertionError:
-                    error("Server response code : %s" % str(response.status))
-
-                with open(filepath, "wb") as f:
-                    while True:
-                        chunk = await response.content.read(1024)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-
-    nvra = nvra_generator(tag, pkg)
-
-    if nvra is not None:
-        for i in nvra:
-            (n, v, r, a) = i
-            pkgname = "%s-%s-%s.%s.rpm" % (n, v, r, a)
-            url = "/".join([topurl, pkg, v, r, a, pkgname])
-            filepath = "/".join([pkgpath, pkgname])
-            await urlretrieve_async(url, filepath)
-
-        return pkgpath
-    else:
-        return None
 
 
 """---------------------------------------------------------------------------------------------"""
