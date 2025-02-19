@@ -106,7 +106,7 @@ class Configuration:
 
     def setup(self):
         try:
-            os.environ["MAX_TASKS"] = self.parameters["max_tasks"]
+            os.environ["MAX_TASKS"] = str(self.parameters["max_tasks"])
         except KeyError:
             pass
         self._set_pkg_imports()
