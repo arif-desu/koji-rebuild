@@ -24,7 +24,7 @@ class Rebuild:
         self.tag_up = upstream.info["tag"]
         self.tag_down = downstream.info["tag"]
         self.fasttrack = bool(int(os.getenv("FAST_TRACK", default="0")))
-        self.pkg_util = PackageHelper()
+        self.pkgutil = PackageHelper()
 
         try:
             if self.downstream.getSessionInfo() is None:
@@ -52,11 +52,11 @@ class Rebuild:
             return False
 
     async def fetch_pkg(self, pkg):
-        pkgpath = await self.pkg_util.retrieveRPMs(self.upstream, self.tag_up, pkg)
+        pkgpath = await self.pkgutil.retrieveRPMs(self.upstream, self.tag_up, pkg)
 
         if pkgpath:
             # TODO: Spawn thread instead of async
-            ret = self.pkg_util.import_package(
+            ret = self.pkgutil.import_package(
                 self.downstream, pkgpath, self.tag_down, pkg
             )
             result = BuildState.COMPLETE if ret else BuildState.FAILED
@@ -68,7 +68,7 @@ class Rebuild:
     async def build_with_scm(self, pkg):
         result = BuildState.OPEN
         task_id = -1
-        scmurl = self.pkg_util.getSCM_URL(self.upstream, self.tag_up, pkg)
+        scmurl = self.pkgutil.getSCM_URL(self.upstream, self.tag_up, pkg)
 
         if scmurl is not None:
             task_id = self.downstream.build(
@@ -89,7 +89,7 @@ class Rebuild:
         task_id = -1
         result: BuildState = BuildState.OPEN
 
-        tag = self.pkg_util.is_available(self.upstream, self.tag_up, pkg)
+        tag = self.pkgutil.is_available(self.upstream, self.tag_up, pkg)
 
         if tag is None:
             self.logger.critical(
@@ -111,7 +111,7 @@ class Rebuild:
             return (pkg, task_id, BuildState.COMPLETE)
 
         if self.fasttrack:
-            if self.pkg_util.is_noarch(self.upstream, self.tag_up, pkg):
+            if self.pkgutil.is_noarch(self.upstream, self.tag_up, pkg):
                 self.logger.info(f"Attempting to import package {pkg}")
                 try:
                     result = await self.fetch_pkg(pkg)
