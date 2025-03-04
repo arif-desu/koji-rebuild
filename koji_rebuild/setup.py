@@ -51,6 +51,10 @@ class Setup:
             self.settings["package_builds"] = defaults
 
         pkgbuilds = self.settings["package_builds"]
+
+        for key in ["buildlist", "ignorelist", "download_dir"]:
+            pkgbuilds[key] = resolvepath(pkgbuilds[key])
+
         self._set_defaults(defaults, pkgbuilds)
 
     def _logging(self):
@@ -64,6 +68,9 @@ class Setup:
             self.settings["logging"] = defaults
 
         logfile = self.settings["logging"]
+
+        for key in logfile:
+            logfile[key] = resolvepath(logfile[key])
 
         self._set_defaults(defaults, logfile)
 
@@ -136,17 +143,18 @@ class Setup:
 
         self._set_defaults(defaults, notif)
 
+        email = notif["email"]
         try:
-            validate_email(notif["sender_id"])
+            validate_email(email["sender_id"])
         except EmailNotValidError:
-            print(f"Email ID: {notif["sender_id"]} is invalid")
+            print(f"Email ID: {email["sender_id"]} is invalid")
             sys.exit(1)
 
-        if not isinstance(notif["recipients"], list):
+        if not isinstance(email["recipients"], list):
             print("Recipients must be specified as a list")
             sys.exit(1)
         else:
-            for id in notif["recipients"]:
+            for id in email["recipients"]:
                 try:
                     validate_email(id)
                 except EmailNotValidError:
@@ -154,7 +162,7 @@ class Setup:
                     sys.exit(1)
 
         valid_auth = ["none", "tls", "start_tls", "starttls"]
-        auth = notif["email"]["auth"]
+        auth = email["auth"]
 
         if auth.lower() not in valid_auth:
             print(f"Invalid authentication method {auth}")
