@@ -12,7 +12,7 @@ import aiohttp
 
 class PackageHelper:
     def __init__(self) -> None:
-        self.logger = logging.getLogger("Package")
+        self.logger = logging.getLogger("PackageHelper")
         pass
 
     def getSCM_URL(self, session: KojiSession, tag: str, pkg: str):
@@ -70,7 +70,9 @@ class PackageHelper:
         :return - path to package download directory
         """
         dir = os.getenv("IMPORT_DIR", default="~/.rpms")
-        topurl = os.getenv("IMPORT_TOPURL", default="a")
+        topurl = os.getenv(
+            "IMPORT_TOPURL", default="https://kojipkgs.fedoraproject.org/packages"
+        )
         pkgpath = "/".join([dir, pkg])
 
         if not os.path.exists(pkgpath):
@@ -99,16 +101,16 @@ class PackageHelper:
                 return None
 
         async def urlretrieve_async(url, filepath):
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=None, sock_read=5, sock_connect=5)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as response:
                     try:
                         assert response.status == 200
                     except AssertionError:
                         self.logger.error(
-                            "Server response code : %s" % str(response.status)
+                            f"Server response code :{str(response.status)} for package {pkg}. URL - {url}"
                         )
-                        # TODO: Handle this
-                        raise
+                        return None
 
                     with open(filepath, "wb") as f:
                         while True:
@@ -146,6 +148,13 @@ class PackageHelper:
                 "".join([random.choice(string.ascii_letters) for _ in range(8)]),
             )
 
+        def prune():
+            try:
+                shutil.rmtree(pkgdir)
+                self.logger.info(f"Removing directory {pkgdir}")
+            except PermissionError:
+                self.logger.warning(f"Permission error removing directory {pkgdir}")
+
         if not os.path.exists(pkgdir):
             self.logger.critical(f"Directory {pkgdir} does not exist")
             return 1
@@ -165,6 +174,7 @@ class PackageHelper:
                 self.logger.info(f"Imported {rpm}")
             except koji.GenericError as e:
                 self.logger.error("Error importing: %s" % str(e).splitlines()[-1])
+                prune()
                 return -1
 
         untagged = session.untaggedBuilds()
@@ -180,11 +190,7 @@ class PackageHelper:
 
         # Prune downloads after uploading to save disk space
         if prune_dir:
-            try:
-                shutil.rmtree(pkgdir)
-                self.logger.info(f"Removing directory {pkgdir}")
-            except PermissionError:
-                self.logger.warning(f"Permission error removing directory {pkgdir}")
+            prune()
 
         return 0
 

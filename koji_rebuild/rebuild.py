@@ -1,11 +1,13 @@
 from .session import KojiSession
-from .tasks import watch_task, TaskState
+from .tasks import TaskState, TaskWatcher
 from .package import PackageHelper
+from .configuration import Configuration
 import logging
 from .util import nestedseek
 from enum import IntEnum
 import os
 import koji
+import asyncio
 
 
 class BuildState(IntEnum):
@@ -17,12 +19,14 @@ class BuildState(IntEnum):
 
 
 class Rebuild:
+    logger = logging.getLogger("rebuild")
+    settings = Configuration().settings
+
     def __init__(self, upstream: KojiSession, downstream: KojiSession) -> None:
-        self.logger = logging.getLogger("rebuild")
         self.upstream = upstream
         self.downstream = downstream
-        self.tag_up = upstream.info["tag"]
-        self.tag_down = downstream.info["tag"]
+        self.tag_up = upstream.instance["tag"]
+        self.tag_down = downstream.instance["tag"]
         self.fasttrack = bool(int(os.getenv("FAST_TRACK", default="0")))
         self.pkgutil = PackageHelper()
 
@@ -55,10 +59,12 @@ class Rebuild:
         pkgpath = await self.pkgutil.retrieveRPMs(self.upstream, self.tag_up, pkg)
 
         if pkgpath:
-            # TODO: Spawn thread instead of async
-            ret = self.pkgutil.import_package(
-                self.downstream, pkgpath, self.tag_down, pkg
+            task_import = asyncio.create_task(
+                asyncio.to_thread(
+                    self.pkgutil.import_package, self.downstream, pkgpath, self.tag_down
+                )
             )
+            ret = await task_import
             result = BuildState.COMPLETE if ret else BuildState.FAILED
         else:
             result = BuildState.FAILED
@@ -72,9 +78,10 @@ class Rebuild:
 
         if scmurl is not None:
             task_id = self.downstream.build(
-                src=scmurl, target=self.downstream.info["target"]
+                src=scmurl, target=self.downstream.instance["target"]
             )
-            res = await watch_task(self.downstream, task_id)
+            task_watcher = TaskWatcher(self.downstream, task_id)
+            res = await task_watcher.watch_task()
 
             if res == TaskState.CLOSED:
                 result = BuildState.COMPLETE
@@ -117,7 +124,8 @@ class Rebuild:
                     result = await self.fetch_pkg(pkg)
                     return (pkg, task_id, result)
                 except TimeoutError:
-                    raise
+                    self.logger.exception(f"Timed out while fetching package {pkg}")
+                    return (pkg, task_id, BuildState.FAILED)
 
         self.logger.info(f"Building package {pkg}")
 

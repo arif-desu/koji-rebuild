@@ -1,26 +1,35 @@
 import asyncio
 import logging
-import os
 from .session import KojiSession
 from .notification import Notification
 from .rebuild import Rebuild, BuildState
-from .util import error, whoami
+from .util import error, resolvepath, whoami
+from .configuration import Configuration
 
 
 class TaskDispatcher:
+    task_queue = list()
+    logger = logging.getLogger(whoami())
+
     def __init__(
-        self,
-        upstream: KojiSession,
-        downstream: KojiSession,
-        packages: list,
-        notifications: Notification | None = None,
+        self, upstream: KojiSession, downstream: KojiSession, packages: list
     ) -> None:
-        self.task_queue = list()
-        self.max_jobs = int(os.getenv("MAX_TASKS", default="10"))
-        self.logger = logging.getLogger(whoami())
         self.downstream = downstream
         self.packages = packages
-        self.notifications = notifications
+        self.settings = Configuration().settings
+
+        self.max_tasks = self.settings["max_tasks"]
+
+        alert = self.settings["notifications"]["alert"]
+        if alert == "prompt":
+            self.notifications = Notification()
+        else:
+            self.notifications = None
+
+        logs = self.settings["logging"]
+
+        self.complete_fd = open(resolvepath(logs["completed"]), mode="wt")
+        self.failed_fd = open(resolvepath(logs["failed"]), mode="wt")
 
         self.rebuild = Rebuild(upstream, downstream)
 
@@ -36,13 +45,15 @@ class TaskDispatcher:
         return url
 
     def _add_tasks(self):
-        while len(self.task_queue) <= self.max_jobs and self.packages:
+        while len(self.task_queue) <= self.max_tasks and self.packages:
             build_task = asyncio.create_task(
                 self.rebuild.rebuild_package(self.packages.pop(0))
             )
             self.task_queue.append(build_task)
 
     async def start(self):
+        completed_fd = open("completed.txt", "wt")
+        failed_fd = open("failed.txt", "wt")
         while self.packages or self.task_queue:
             self._add_tasks()
 
@@ -57,10 +68,12 @@ class TaskDispatcher:
                 pkg, task_id, result = task.result()
 
                 if result == BuildState.FAILED:
+                    failed_fd.write(pkg + "\n")
                     self.logger.critical("Package %s build failed!" % pkg)
                 elif result == BuildState.CANCELLED:
                     self.logger.info("Package %s build cancelled" % pkg)
                 elif result == BuildState.COMPLETE:
+                    completed_fd.write(pkg + "\n")
                     self.logger.info("Package %s build complete" % pkg)
 
                 # Attempt email notification

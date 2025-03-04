@@ -1,236 +1,211 @@
 import os
 import sys
-import yaml
 import logging
 import aiosmtplib
-
+import asyncio
 import keyring
 from getpass import getpass
 
-from .session import KojiSession
-from .notification import Notification
-from .util import error, resolvepath
+from .util import resolvepath
+from .configuration import Configuration
 from email_validator import validate_email, EmailNotValidError
-from datetime import datetime
 
 
-class Configuration:
-    mail = dict()
+class Setup:
+    email = dict()
     service = "kojibuild"
     user = "kojibuild"
+    logger = logging.getLogger("Setup")
 
-    def __init__(self, configfile) -> None:
-        configfile = os.path.expanduser(configfile)
-        with open(configfile, "r") as f:
-            self.parameters = yaml.safe_load(f)
-
-    def _email_setup(self):
+    def __init__(self, configfile: str) -> None:
         try:
-            self.notify = self.parameters["notifications"]["notify"]
-        except KeyError:
-            self.notify = False
-            print("Email notifications are turned off")
-            return
-        else:
-            if self.notify is False:
-                return
+            self.settings = Configuration(configfile).settings
+        except FileNotFoundError:
+            print(f"Configuration file {configfile} not found!")
+            sys.exit(1)
 
-            try:
-                self.mail["trigger"] = str(self.parameters["notifications"]["trigger"])
-                self.mail["server"] = str(self.parameters["notifications"]["server"])
-                self.mail["userid"] = str(self.parameters["notifications"]["sender_id"])
-            except KeyError as e:
-                print(f"Email parameter(s) undefined: {e}")
-                sys.exit(1)
+        self._logging()
+        self._pkg_build_params()
+        self._email_params()
 
-            try:
-                validate_email(self.mail["userid"])
-            except EmailNotValidError:
-                print(f"Email ID: {self.mail["userid"]} is invalid")
-                sys.exit(1)
+        if self.settings["notifications"]["alerts"] != "off":
+            event_loop = asyncio.get_event_loop()
+            event_loop.run_until_complete(self.test_smtp_connection())
 
-            try:
-                self.mail["port"] = self.parameters["notifications"]["port"]
-            except KeyError:
-                self.mail["port"] = 587
+    def _set_defaults(self, default: dict, user: dict):
+        for key in default:
+            if key not in user:
+                user[key] = default[key]
 
-            try:
-                self.mail["auth"] = str(self.parameters["notifications"]["auth"])
-            except KeyError:
-                self.mail["auth"] = None
-            finally:
-                print(f"mail auth = {self.mail["auth"]}")
-                if self.mail["auth"] is not None:
-                    valid_auth = ["tls", "start_tls", "starttls"]
-                    if self.mail["auth"].lower() not in valid_auth:  # type: ignore
-                        print(f'Invalid authentication method "{self.mail["auth"]}"')
-                        self.mail_auth = None
-                        print("Email authentication set to None")
-            # Save password in keyring
-            keyring.set_password(
-                self.service,
-                self.user,
-                password=getpass("Enter password for %s :" % (self.mail["userid"])),
-            )
+    def _pkg_build_params(self):
+        defaults = {
+            "max_tasks": 10,
+            "buildlist": f"{os.getcwd()}/build.list",
+            "ignorelist": f"{os.getcwd()}/ignore.list",
+            "fasttrack": False,
+            "topurl": "https://kojipkgs.fedoraproject.org/packages",
+            "download_dir": f"{os.path.expanduser('~')}/.rpms",
+        }
 
-    def _get_file(self, attribute: str, default: str | None):
-        try:
-            f = resolvepath(self.parameters["files"][attribute])
-        except KeyError:
-            f = "/".join([os.getcwd(), default]) if (default is not None) else None
+        if "package_builds" not in self.settings:
+            self.settings["package_builds"] = defaults
 
-        return os.path.expanduser(f) if (f is not None) else None
+        pkgbuilds = self.settings["package_builds"]
+        self._set_defaults(defaults, pkgbuilds)
 
-    def _set_pkg_imports(self):
-        try:
-            attempt = str(self.parameters["pkg_import"]["attempt"])
-            self.pkgimport = (
-                True if (attempt.lower() == "true" or attempt.lower == "yes") else False
-            )
-            if self.pkgimport:
-                os.environ["FAST_TRACK"] = "1"
-        except KeyError:
-            self.pkgimport = False
+    def _logging(self):
+        defaults = {
+            "application": f"{os.getcwd()}/kojibuild.log",
+            "completed": f"{os.getcwd()}/completed.log",
+            "failed": f"{os.getcwd()}/failed.log",
+        }
 
-        if self.pkgimport:
-            try:
-                os.environ["IMPORT_TOPURL"] = str(
-                    self.parameters["pkg_import"]["topurl"]
-                )
-                os.environ["IMPORT_DIR"] = str(
-                    resolvepath(self.parameters["pkg_import"]["dir"])
-                )
-            except KeyError:
-                print("Package imports are turned on but attributes undefined")
-                sys.exit(1)
+        if "logging" not in self.settings:
+            self.settings["logging"] = defaults
 
-    def setup(self):
-        try:
-            os.environ["MAX_TASKS"] = str(self.parameters["max_tasks"])
-        except KeyError:
-            pass
-        self._set_pkg_imports()
+        logfile = self.settings["logging"]
 
-        self.ignorefile = self._get_file("ignorelist", None)
-        self.buildfile = self._get_file("buildlist", "buildlist.txt")
-        self.logfile = self._get_file("logfile", "kojibuild.log")
-
-        self._email_setup()
-
-
-class Setup(Configuration):
-    def __init__(self, configfile) -> None:
-        super().__init__(configfile)
-        self.logger = logging.getLogger("setup")
-        self.setup()
-
-    def setup_logger(self, append_date: bool = False):
-        assert self.logfile is not None
-        if append_date:
-            dt = datetime.now()
-            dt = dt.strftime("%Y-%m-%d-%H:%M:%S")
-            idx = self.logfile.find(".")
-            self.logfile = "%s-%s%s" % (self.logfile[:idx], dt, self.logfile[idx:])
+        self._set_defaults(defaults, logfile)
 
         logging.basicConfig(
-            filename=self.logfile,
+            filename=logfile["application"],
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s : %(message)s",
         )
-        return self.logfile
 
-    def get_koji_session(self, name: str):
+    def packagelist(self):
+        def ftol(filename, default: str | None = None):
+            try:
+                fp = resolvepath(self.settings["package_builds"][filename])
+            except KeyError:
+                fp = "/".join([os.getcwd(), default]) if default else None
+
+            fp = os.path.expanduser(fp) if fp else None
+
+            if fp:
+                try:
+                    with open(fp) as f:
+                        return f.readlines()
+                except FileNotFoundError:
+                    self.logger.info(f"File {fp} not found!")
+                    return []
+            else:
+                return []
+
+        buildlist = ftol(
+            self.settings["package_builds"]["buildlist"], default="build.list"
+        )
+        ignorelist = ftol(
+            self.settings["package_builds"]["ignorelist"], default="ignore.list"
+        )
+
         try:
-            instance = self.parameters["instance"][name]
-        except KeyError:
-            sys.stderr.write(f"Instance {name} undefined in configuration file!")
+            assert any(buildlist)
+        except AssertionError:
+            print("Buildlist is empty!")
             sys.exit(1)
-        session = KojiSession(instance)
-        return session
 
-    def _get_ignorelist(self):
-        ignorelist = None
-
-        if self.ignorefile is not None:
-            try:
-                with open(self.ignorefile) as f:
-                    ignorelist = f.readlines()
-            except (FileNotFoundError, EnvironmentError):
-                ignorelist = None
-                self.logger.warning("Ignorelist could not be fetched!")
-        return ignorelist
-
-    def _get_buildlist(self):
-        buildlist = list()
-        if self.buildfile is not None:
-            try:
-                with open(self.buildfile) as f:
-                    buildlist = f.readlines()
-            except FileNotFoundError:
-                error("Buildlist could not be fetched!")
-        else:
-            error("Buildlist was not specified!")
-
-        return buildlist
-
-    def get_packagelist(self):
-        ignorelist = self._get_ignorelist()
-        buildlist = self._get_buildlist()
-        if ignorelist:
+        if any(ignorelist):
             for pkg in ignorelist:
                 if pkg in buildlist:
                     buildlist.remove(pkg)
 
-        packagelist = [pkg.strip() for pkg in buildlist]
-        return packagelist
+        pkglist = [pkg.strip() for pkg in buildlist]
+        return pkglist
 
-    async def _test_smtp_connection(self):
-        tls = True if self.mail["auth"] == "tls" else False
-        start_tls = True if self.mail["auth"] == "start_tls" else False
+    def _email_params(self):
 
-        client = aiosmtplib.SMTP(
-            hostname=str(self.mail["server"]),
-            port=int(self.mail["port"]),  # type: ignore
-            username=str(self.mail["userid"]),
-            password=keyring.get_password(self.service, self.user),
-            use_tls=tls,
-            start_tls=start_tls,
-        )
+        defaults = {
+            "alerts": "off",
+            "trigger": "fail",
+            "email": {
+                "server": "smtp.example.com",
+                "port": 587,
+                "auth": "none",
+                "sender_id": "kojiuser@example.com",
+                "recipients": ["kojiadmin@example.com"],
+            },
+        }
+
+        if "notifications" not in self.settings:
+            self.settings["notifications"] = {}
+            self.logger.info("Notifications are turned off")
+            return
+
+        notif = self.settings["notifications"]
+
+        self._set_defaults(defaults, notif)
 
         try:
-            await client.connect()
-        except aiosmtplib.errors.SMTPAuthenticationError:
-            print(
-                "Authentication error while estabilishing connection with SMTP server"
-            )
+            validate_email(notif["sender_id"])
+        except EmailNotValidError:
+            print(f"Email ID: {notif["sender_id"]} is invalid")
+            sys.exit(1)
+
+        if not isinstance(notif["recipients"], list):
+            print("Recipients must be specified as a list")
             sys.exit(1)
         else:
-            print("Successfully authenticated to email server")
+            for id in notif["recipients"]:
+                try:
+                    validate_email(id)
+                except EmailNotValidError:
+                    print(f"{id} is not a valid email address")
+                    sys.exit(1)
 
-    def setup_notifications(self) -> Notification | None:
-        if self.notify is True:
-            recipients = self.parameters["notifications"]["recipients"]
-            if not any(recipients):
-                self.logger.warning(
-                    "Email notifications turned on but no recipients specified! Notifications will be turned off"
+        valid_auth = ["none", "tls", "start_tls", "starttls"]
+        auth = notif["email"]["auth"]
+
+        if auth.lower() not in valid_auth:
+            print(f"Invalid authentication method {auth}")
+            sys.exit(1)
+
+    async def test_smtp_connection(self):
+        password = keyring.get_password(self.service, self.user)
+        tls = True if self.settings["notifications"]["auth"] == "tls" else False
+        start_tls = (
+            True if self.settings["notifications"]["auth"] == "start_tls" else False
+        )
+        test = False
+
+        if password is None:
+            flag = 0
+            for _ in range(3):
+                password = getpass(f"Enter password for {self.email["userid"]}")
+
+                client = aiosmtplib.SMTP(
+                    hostname=self.settings["notifications"]["server"],
+                    port=self.settings["notifications"]["port"],
+                    username=self.email["userid"],
+                    password=password,
+                    use_tls=tls,
+                    start_tls=start_tls,
                 )
-                notify = None
+
+                try:
+                    test = await client.connect()
+                except aiosmtplib.errors.SMTPAuthenticationError:
+                    print(
+                        "Authentication error while estabilishing connection with SMTP server"
+                    )
+                    continue
+                else:
+                    print("Successfully authenticated to email server")
+                    break
+
+            if test is False:
+                print("Invalid password. Try again!")
             else:
-                for mailid in recipients:
-                    try:
-                        print(f"Validating email id : {mailid}")
-                        validate_email(mailid)
-                    except EmailNotValidError:
-                        error(f"Invalid email address {mailid}")
-                subs = ", ".join(recipients)
-                notify = Notification(
-                    self.mail["server"],
-                    self.mail["port"],
-                    self.mail["auth"],
-                    self.mail["userid"],
-                    self.mail["trigger"],
-                    subs,
+                print("Successfully authenticated to SMTP server")
+                flag = 1
+
+            if flag == 0:
+                print(
+                    "Maximum number of attempts reached. Please check email parameters in configfile"
                 )
-        else:
-            notify = None
-        return notify
+                sys.exit(1)
+
+        assert password is not None
+        keyring.set_password(self.service, self.user, password=password)
+
+        return True

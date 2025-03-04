@@ -2,22 +2,32 @@ import koji
 import os
 import logging
 from .util import conf_to_dict, error, resolvepath
+from .configuration import Configuration
 
 
 class KojiSession(koji.ClientSession):
+    logger = logging.getLogger("kojisession")
 
-    def __init__(self, instance: dict):
+    def __init__(self, instance: str):
         """Initialize a koji session object
-        @param: instance - dictionary object containing koji instance information
+        @param: instance - Koji instance name as described in YAML config
         """
-        self.info = instance
-        self.logger = logging.getLogger("kojisession")
+        try:
+            self.settings = Configuration().settings
+        except AttributeError:
+            error("Configuration uninitialized!")
 
         try:
-            configfile = resolvepath(instance["config"])
+            self.instance = self.settings["instance"][instance]
+        except KeyError:
+            self.logger.info(f"Undefined instance name {instance} in configfile")
+            error(f"Undefined Instance {instance}")
+
+        try:
+            configfile = resolvepath(self.instance["kojiconf"])
             self.config = conf_to_dict(str(configfile))
         except FileNotFoundError:
-            error(f"Koji config file {instance["config"]} not found!")
+            error(f"File not found {configfile}")  # type: ignore
 
         try:
             self.server = str(self.config["server"])
@@ -34,7 +44,7 @@ class KojiSession(koji.ClientSession):
 
     """-----------------------------------------------------------------------------------------------------------"""
 
-    def _setup_authentication(self):
+    def _setup_auth(self):
         if self.auth is not None:
             if self.auth == "ssl":
                 try:
@@ -73,7 +83,7 @@ class KojiSession(koji.ClientSession):
 
     def auth_login(self) -> bool:
         """Login to koji instance using SSL or Keberos authentication"""
-        self._setup_authentication()
+        self._setup_auth()
 
         if self.certs_set:
             if self.auth == "ssl":
@@ -100,7 +110,7 @@ class KojiSession(koji.ClientSession):
             return False
 
     """-----------------------------------------------------------------------------------------------------------"""
- 
+
     def get_total_hosts(self, arch: list | None = None):
         """Get total number of hosts available for a specified architecture(s)"""
         return len(self.listHosts(arches=arch, enabled=True, channelID="default"))

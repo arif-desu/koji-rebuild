@@ -2,10 +2,13 @@ import logging
 import asyncio
 import click
 
+from .session import KojiSession
 from .util import GenericException
 from .setup import Setup
 from .notification import Notification
 from .dispatcher import TaskDispatcher
+from .configuration import Configuration
+import sys
 
 
 @click.command("koji-rebuild")
@@ -16,31 +19,41 @@ def main(configfile):
     """
     CONFIGFILE: YAML formatted configuration file
     """
-    config = Setup(configfile)
-    logger = logging.getLogger("main")
-    logfile = config.setup_logger(append_date=True)
-    upstream = config.get_koji_session("upstream")
-    downstream = config.get_koji_session("downstream")
-    packages = config.get_packagelist()
-    notify = config.setup_notifications()
+    logger = logging.getLogger("koji-rebuild")
+    setup = Setup(configfile)
+    settings = Configuration().settings
+    upstream = KojiSession("upstream")
+    downstream = KojiSession("downstream")
+    notification = Notification()
 
-    dispatcher = TaskDispatcher(upstream, downstream, packages, notify)
+    packagelist = setup.packagelist()
+
+    if not any(packagelist):
+        print("Package list is empty!")
+        sys.exit(1)
 
     msg = str()
     try:
-        asyncio.run(dispatcher.start())
+        asyncio.run(TaskDispatcher(upstream, downstream, packagelist).start())
     except KeyboardInterrupt:
-        msg = "Received SIGINT from keyboard"
+        msg = "Received SIGINT"
         logger.exception(msg)
     except GenericException as e:
         msg = e.__str__()
     else:
-        msg = "All packages built!"
+        msg = "Check attached logs"
     finally:
-        if isinstance(notify, Notification):
+        alert = settings["notifications"]["alerts"]
+        if alert.lower() in ["deferred", "prompt"]:
+            logs = settings["logging"]
+            app = logs["application"]
+            completed = logs["completed"]
+            failed = logs["failed"]
             asyncio.run(
-                notify.send_email(
-                    "Koji Build System: Finished", msg, attachment=[logfile]
+                notification.send_email(
+                    "Koji Build System: Finished",
+                    msg,
+                    attachment=[app, completed, failed],
                 )
             )
         print(msg)

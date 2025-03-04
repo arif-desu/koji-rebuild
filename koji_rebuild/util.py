@@ -105,17 +105,11 @@ def nestedseek(node, key):
 
 def resolvepath(path: str) -> str:
     """Resolves relative path specified as environment variable."""
+    path = os.path.expanduser(path)
 
-    assert path is not None
-    variables = {"${HOME}": os.path.expanduser("~"), "${PWD}": os.getcwd()}
-
-    while "${" in path:
-        start_idx = path.find("${")
-        end_idx = path.find("}", start_idx)
-        variable = path[start_idx : end_idx + 1]
-        if variable in variables:
-            path = path.replace(variable, variables[variable])
-        else:
-            raise ValueError(f"Unknown variable: {variable}")
+    path = os.path.expandvars(path)
 
     return path
+
+
+"""---------------------------------------------------------------------------------------------"""
