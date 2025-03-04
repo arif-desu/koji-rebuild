@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "koji-rebuild"
-version = "0.1.0"
-description = "An application to automate package rebuilds using Koji Build System"
+version = "1.0.0"
+description = "An application to automate RPM package rebuilds using Koji Build System"
 authors = ["Arif B <arif.dev@pm.me>"]
 license = "MIT"
 readme = "README.md"
