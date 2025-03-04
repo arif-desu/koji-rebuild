@@ -1,38 +1,35 @@
 instance:
   upstream:
-    config: ${HOME}/.koji/config.d/fedora.conf
+    kojiconf: ${HOME}/.koji/config.d/fedora.conf
     target: f40
-    tag: f40 #if tag is null, the destination tag mapped into target will be used
+    tag: f40
 
   downstream:
-    config: ${HOME}/.koji/config.d/local.conf
+    kojiconf: ${HOME}/.koji/config.d/local.conf
     target: f40
     tag: f40 # destination tag
 
-# Maximum number of tasks to be queued in koji. If undefined, defaults to 10
-max_tasks: 16
+package_builds:
+  max_tasks: 16
+  buildlist: ${PWD}/build.list
+  ignorelist: ${PWD}/ignore.list
 
-pkg_import:
-  attempt: yes
+  fasttrack: no
   topurl: https://kojipkgs.fedoraproject.org/packages
-  dir: ${HOME}/.rpms
+  download_dir: ${HOME}/.rpms
 
-# files to fetch and store info
-files:
-  # list specifying packages to build.
-  buildlist: ${PWD}/buildlist.txt
-  # list specifying packages to ignore while building
-  ignorelist: ${PWD}/ignorelist.txt
-  # path to file where application logs would be stored
-  logfile: ${PWD}/kojibuild.log
+logging:
+  application: ${PWD}/kojibuild.log
+  completed: ${PWD}/completed.log
+  failed: ${PWD}/failed.log
 
 notifications:
-  notify: no
-  # notification event - "success", "fail", "all"
-  trigger: fail
-  server: smtp.example.com
-  port: 587
-  sender_id: kojiadmin@example.com
-  recipients: [kojiuser@example.com]
-  # authentication - "none", "tls", "start_tls"
-  auth: none
+  alerts: off # off, prompt, deferred
+  trigger: fail # notification event - "success", "fail", "all"
+
+  email:
+    server: smtp.example.com
+    port: 587
+    auth: none # authentication - "none", "tls", "start_tls"
+    sender_id: kojiuser@example.com
+    recipients: [kojiadmin@example.com]
