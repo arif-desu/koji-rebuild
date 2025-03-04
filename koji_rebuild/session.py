@@ -15,7 +15,7 @@ class KojiSession(koji.ClientSession):
         try:
             self.settings = Configuration().settings
         except AttributeError:
-            error("Configuration uninitialized!")
+            error("Configuration not initialized!")
 
         try:
             self.instance = self.settings["instance"][instance]

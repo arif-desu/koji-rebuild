@@ -15,7 +15,7 @@ class Notification:
         try:
             self.notif = Configuration().settings["notifications"]
         except AttributeError:
-            error("Configuration is not initialized")
+            error("Configuration not initialized")
         except KeyError:
             self.notif = {}
             return

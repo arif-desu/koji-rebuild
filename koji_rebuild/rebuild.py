@@ -3,7 +3,7 @@ from .tasks import TaskState, TaskWatcher
 from .package import PackageHelper
 from .configuration import Configuration
 import logging
-from .util import nestedseek
+from .util import nestedseek, error
 from enum import IntEnum
 import os
 import koji
@@ -20,9 +20,12 @@ class BuildState(IntEnum):
 
 class Rebuild:
     logger = logging.getLogger("rebuild")
-    settings = Configuration().settings
 
     def __init__(self, upstream: KojiSession, downstream: KojiSession) -> None:
+        try:
+            self.settings = Configuration().settings
+        except AttributeError:
+            error("Configuration not initialized!")
         self.upstream = upstream
         self.downstream = downstream
         self.tag_up = upstream.instance["tag"]

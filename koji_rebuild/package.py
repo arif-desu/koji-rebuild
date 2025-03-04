@@ -13,7 +13,6 @@ import aiohttp
 class PackageHelper:
     def __init__(self) -> None:
         self.logger = logging.getLogger("PackageHelper")
-        pass
 
     def getSCM_URL(self, session: KojiSession, tag: str, pkg: str):
         build_id = None
