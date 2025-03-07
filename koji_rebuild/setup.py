@@ -12,9 +12,6 @@ from email_validator import validate_email, EmailNotValidError
 
 
 class Setup:
-    email = dict()
-    service = "kojibuild"
-    user = "kojibuild"
     logger = logging.getLogger("Setup")
 
     def __init__(self, configfile: str) -> None:
@@ -143,33 +140,46 @@ class Setup:
 
         self._set_defaults(defaults, notif)
 
-        email = notif["email"]
-        try:
-            validate_email(email["sender_id"])
-        except EmailNotValidError:
-            print(f"Email ID: {email["sender_id"]} is invalid")
-            sys.exit(1)
+        alert = notif["alert"]
 
-        if not (isinstance(email["recipients"], list) or any(email["recipients"])):
-            print("Please specify recipients in as a list")
+        if type(alert) is bool and alert is False:
+            alert = "off"
+            return
+        # TODO: Handle string
+
+        assert type(alert) is str
+
+        if alert.lower() not in ["off", "prompt", "deferred"]:
+            self.logger.info(f"Invalid value for alert :{alert}")
             sys.exit(1)
         else:
-            for id in email["recipients"]:
-                try:
-                    validate_email(id)
-                except EmailNotValidError:
-                    print(f"{id} is not a valid email address")
-                    sys.exit(1)
+            email = notif["email"]
+            try:
+                validate_email(email["sender_id"])
+            except EmailNotValidError:
+                print(f"Email ID: {email["sender_id"]} is invalid")
+                sys.exit(1)
 
-        valid_auth = ["none", "tls", "start_tls", "starttls"]
-        auth = email["auth"]
+            if not (isinstance(email["recipients"], list) or any(email["recipients"])):
+                print("Please specify recipients in as a list")
+                sys.exit(1)
+            else:
+                for id in email["recipients"]:
+                    try:
+                        validate_email(id)
+                    except EmailNotValidError:
+                        print(f"{id} is not a valid email address")
+                        sys.exit(1)
 
-        if auth.lower() not in valid_auth:
-            print(f"Invalid authentication method {auth}")
-            sys.exit(1)
+            valid_auth = ["none", "tls", "start_tls", "starttls"]
+            auth = email["auth"]
+
+            if auth.lower() not in valid_auth:
+                print(f"Invalid authentication method {auth}")
+                sys.exit(1)
 
     async def test_smtp_connection(self):
-        password = keyring.get_password(self.service, self.user)
+        password = keyring.get_password("kojibuild", "kojibuild")
         email = self.settings["notifications"]["email"]
         tls = True if email["auth"] == "tls" else False
         start_tls = True if email["auth"] == "start_tls" else False
@@ -178,7 +188,7 @@ class Setup:
         if password is None:
             flag = 0
             for _ in range(3):
-                password = getpass(f"Enter password for {self.email["userid"]}")
+                password = getpass(f"Enter password for {email["userid"]}")
 
                 client = aiosmtplib.SMTP(
                     hostname=email["server"],
@@ -213,6 +223,6 @@ class Setup:
                 sys.exit(1)
 
         assert password is not None
-        keyring.set_password(self.service, self.user, password=password)
+        keyring.set_password("kojibuild", "kojibuild", password=password)
 
         return True
