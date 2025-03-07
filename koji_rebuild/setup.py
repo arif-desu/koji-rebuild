@@ -28,7 +28,7 @@ class Setup:
         self._pkg_build_params()
         self._email_params()
 
-        if self.settings["notifications"]["alerts"] != "off":
+        if self.settings["notifications"]["alert"] != "off":
             event_loop = asyncio.get_event_loop()
             event_loop.run_until_complete(self.test_smtp_connection())
 
@@ -123,7 +123,7 @@ class Setup:
     def _email_params(self):
 
         defaults = {
-            "alerts": "off",
+            "alert": "off",
             "trigger": "fail",
             "email": {
                 "server": "smtp.example.com",

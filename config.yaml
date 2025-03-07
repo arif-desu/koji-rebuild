@@ -24,7 +24,7 @@ logging:
   failed: ${PWD}/failed.list
 
 notifications:
-  alerts: off # off, prompt, deferred
+  alert: off # off, prompt, deferred
   trigger: fail # notification event - "success", "fail", "all"
 
   email:

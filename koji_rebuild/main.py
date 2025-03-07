@@ -43,7 +43,7 @@ def main(configfile):
     else:
         msg = "Check attached logs"
     finally:
-        alert = settings["notifications"]["alerts"]
+        alert = settings["notifications"]["alert"]
         if alert.lower() in ["deferred", "prompt"]:
             logs = settings["logging"]
             app = logs["application"]

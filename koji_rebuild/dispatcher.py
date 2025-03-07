@@ -20,7 +20,7 @@ class TaskDispatcher:
 
         self.max_tasks = self.settings["package_builds"]["max_tasks"]
 
-        alert = self.settings["notifications"]["alerts"]
+        alert = self.settings["notifications"]["alert"]
         if alert == "prompt":
             self.notifications = Notification()
         else:
