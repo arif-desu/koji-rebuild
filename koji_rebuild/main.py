@@ -21,10 +21,8 @@ def main(configfile):
     """
     logger = logging.getLogger("koji-rebuild")
     setup = Setup(configfile)
-    settings = Configuration().settings
     upstream = KojiSession("upstream")
     downstream = KojiSession("downstream")
-    notification = Notification()
 
     packagelist = setup.packagelist()
 
@@ -43,9 +41,10 @@ def main(configfile):
     else:
         msg = "Check attached logs"
     finally:
-        alert = settings["notifications"]["alert"]
+        alert = Configuration().settings["notifications"]["alert"]
         if alert.lower() in ["deferred", "prompt"]:
-            logs = settings["logging"]
+            notification = Notification()
+            logs = Configuration().settings["logging"]
             app = logs["application"]
             completed = logs["completed"]
             failed = logs["failed"]
