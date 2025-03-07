@@ -176,7 +176,7 @@ class PackageHelper:
                     f"Error importing package {os.path.basename(pkgdir)}: {str(e).splitlines()[-1]}"
                 )
                 prune()
-                return -1
+                return 1
 
         untagged = session.untaggedBuilds()
 

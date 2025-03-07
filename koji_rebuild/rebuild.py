@@ -67,10 +67,12 @@ class Rebuild:
                 )
             )
             ret = await task_import
-            result = BuildState.COMPLETE if ret else BuildState.FAILED
+            result = BuildState.FAILED if ret else BuildState.COMPLETE
         else:
             result = BuildState.FAILED
-            self.logger.critical(f"Failed to import package {pkg}")
+
+        if result == BuildState.FAILED:
+            self.logger.info(f"Failed to import package {pkg}")
         return result
 
     async def build_with_scm(self, pkg):
