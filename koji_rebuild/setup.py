@@ -60,8 +60,8 @@ class Setup:
     def _logging(self):
         defaults = {
             "application": f"{os.getcwd()}/kojibuild.log",
-            "completed": f"{os.getcwd()}/completed.log",
-            "failed": f"{os.getcwd()}/failed.log",
+            "completed": f"{os.getcwd()}/completed.list",
+            "failed": f"{os.getcwd()}/failed.list",
         }
 
         if "logging" not in self.settings:
@@ -130,7 +130,7 @@ class Setup:
                 "port": 587,
                 "auth": "none",
                 "sender_id": "kojiuser@example.com",
-                "recipients": ["kojiadmin@example.com"],
+                "recipients": [],
             },
         }
 
@@ -150,8 +150,8 @@ class Setup:
             print(f"Email ID: {email["sender_id"]} is invalid")
             sys.exit(1)
 
-        if not isinstance(email["recipients"], list):
-            print("Recipients must be specified as a list")
+        if not (isinstance(email["recipients"], list) or any(email["recipients"])):
+            print("Please specify recipients in as a list")
             sys.exit(1)
         else:
             for id in email["recipients"]:
@@ -170,10 +170,9 @@ class Setup:
 
     async def test_smtp_connection(self):
         password = keyring.get_password(self.service, self.user)
-        tls = True if self.settings["notifications"]["auth"] == "tls" else False
-        start_tls = (
-            True if self.settings["notifications"]["auth"] == "start_tls" else False
-        )
+        email = self.settings["notifications"]["email"]
+        tls = True if email["auth"] == "tls" else False
+        start_tls = True if email["auth"] == "start_tls" else False
         test = False
 
         if password is None:
@@ -182,9 +181,9 @@ class Setup:
                 password = getpass(f"Enter password for {self.email["userid"]}")
 
                 client = aiosmtplib.SMTP(
-                    hostname=self.settings["notifications"]["server"],
-                    port=self.settings["notifications"]["port"],
-                    username=self.email["userid"],
+                    hostname=email["server"],
+                    port=email["port"],
+                    username=email["userid"],
                     password=password,
                     use_tls=tls,
                     start_tls=start_tls,

@@ -20,24 +20,23 @@ class Notification:
             self.notif = {}
             return
 
-        self.trigger = self.notif["trigger"]
-
         email = self.notif["email"]
 
-        self.senderid = email["sender_id"]
-        self.recipients = email["recipients"]
+        self.senderid: str = email["sender_id"]
 
-        self.server = email["server"]
+        self.recipients: list = email["recipients"]
 
-        self.port = email["port"]
+        server = email["server"]
+
+        port = email["port"]
         auth = email["auth"]
 
         tls = True if auth == "tls" else False
         start_tls = True if (auth == "start_tls" or auth == "starttls") else False
 
         self.client = aiosmtplib.SMTP(
-            hostname=self.server,
-            port=self.port,
+            hostname=server,
+            port=port,
             username=self.senderid,
             password=keyring.get_password("kojibuild", "kojibuild"),
             use_tls=tls,
@@ -52,7 +51,7 @@ class Notification:
 
         message = MIMEMultipart()
         message["From"] = str(self.senderid)
-        message["To"] = self.recipients
+        message["To"] = ", ".join(self.recipients)
         message["Subject"] = subject
 
         message.attach(MIMEText(msg, "html", "utf-8"))
@@ -91,11 +90,11 @@ class Notification:
 
         msg = html_message(msg)
 
-        if self.trigger == "fail":
+        if self.notif["trigger"] == "fail":
             flag = 1 if pkg_status == BuildState.FAILED else 0
-        elif self.trigger == "build":
+        elif self.notif["trigger"] == "build":
             flag = 1 if pkg_status == BuildState.COMPLETE else 0
-        elif self.trigger == "all":
+        elif self.notif["trigger"] == "all":
             flag = 1 if pkg_status == (BuildState.COMPLETE or BuildState.FAILED) else 0
         else:
             flag = 0

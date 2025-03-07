@@ -5,7 +5,6 @@ from .configuration import Configuration
 import logging
 from .util import nestedseek, error
 from enum import IntEnum
-import os
 import koji
 import asyncio
 
@@ -30,7 +29,7 @@ class Rebuild:
         self.downstream = downstream
         self.tag_up = upstream.instance["tag"]
         self.tag_down = downstream.instance["tag"]
-        self.fasttrack = bool(int(os.getenv("FAST_TRACK", default="0")))
+        self.fasttrack = self.settings["package_builds"]["fasttrack"]
         self.pkgutil = PackageHelper()
 
         try:

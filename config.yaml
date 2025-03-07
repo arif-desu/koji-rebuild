@@ -20,8 +20,8 @@ package_builds:
 
 logging:
   application: ${PWD}/kojibuild.log
-  completed: ${PWD}/completed.log
-  failed: ${PWD}/failed.log
+  completed: ${PWD}/completed.list
+  failed: ${PWD}/failed.list
 
 notifications:
   alerts: off # off, prompt, deferred

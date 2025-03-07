@@ -18,9 +18,9 @@ class TaskDispatcher:
         self.packages = packages
         self.settings = Configuration().settings
 
-        self.max_tasks = self.settings["max_tasks"]
+        self.max_tasks = self.settings["package_builds"]["max_tasks"]
 
-        alert = self.settings["notifications"]["alert"]
+        alert = self.settings["notifications"]["alerts"]
         if alert == "prompt":
             self.notifications = Notification()
         else:
@@ -28,8 +28,8 @@ class TaskDispatcher:
 
         logs = self.settings["logging"]
 
-        self.complete_fd = open(resolvepath(logs["completed"]), mode="wt")
-        self.failed_fd = open(resolvepath(logs["failed"]), mode="wt")
+        self.compfd = open(resolvepath(logs["completed"]), mode="w+")
+        self.failfd = open(resolvepath(logs["failed"]), mode="w+")
 
         self.rebuild = Rebuild(upstream, downstream)
 
@@ -52,8 +52,6 @@ class TaskDispatcher:
             self.task_queue.append(build_task)
 
     async def start(self):
-        completed_fd = open("completed.txt", "wt")
-        failed_fd = open("failed.txt", "wt")
         while self.packages or self.task_queue:
             self._add_tasks()
 
@@ -68,12 +66,12 @@ class TaskDispatcher:
                 pkg, task_id, result = task.result()
 
                 if result == BuildState.FAILED:
-                    failed_fd.write(pkg + "\n")
+                    self.failfd.write(pkg + "\n")
                     self.logger.critical("Package %s build failed!" % pkg)
                 elif result == BuildState.CANCELLED:
                     self.logger.info("Package %s build cancelled" % pkg)
                 elif result == BuildState.COMPLETE:
-                    completed_fd.write(pkg + "\n")
+                    self.compfd.write(pkg + "\n")
                     self.logger.info("Package %s build complete" % pkg)
 
                 # Attempt email notification
@@ -85,3 +83,6 @@ class TaskDispatcher:
                         )
 
                 self.task_queue.remove(task)
+
+        self.compfd.close()
+        self.failfd.close()

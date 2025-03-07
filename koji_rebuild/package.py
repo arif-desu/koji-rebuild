@@ -1,3 +1,4 @@
+from .configuration import Configuration
 from .session import KojiSession
 from .util import nestedseek
 import koji
@@ -68,10 +69,9 @@ class PackageHelper:
         :param: pkg - package to be downloaded
         :return - path to package download directory
         """
-        dir = os.getenv("IMPORT_DIR", default="~/.rpms")
-        topurl = os.getenv(
-            "IMPORT_TOPURL", default="https://kojipkgs.fedoraproject.org/packages"
-        )
+        settings = Configuration().settings
+        dir = settings["package_builds"]["download_dir"]
+        topurl = settings["package_builds"]["topurl"]
         pkgpath = "/".join([dir, pkg])
 
         if not os.path.exists(pkgpath):
@@ -172,7 +172,9 @@ class PackageHelper:
                 session.importRPM(path=serverdir, basename=rpm)
                 self.logger.info(f"Imported {rpm}")
             except koji.GenericError as e:
-                self.logger.error("Error importing: %s" % str(e).splitlines()[-1])
+                self.logger.error(
+                    f"Error importing package {os.path.basename(pkgdir)}: {str(e).splitlines()[-1]}"
+                )
                 prune()
                 return -1
 
@@ -183,9 +185,7 @@ class PackageHelper:
             session.tagBuildBypass(tag, build=rpm)
             self.logger.info(f"Tagging build {rpm} under {tag}")
 
-        self.logger.info(
-            "Successfully imported package : %s" % (os.path.basename(pkgdir))
-        )
+        self.logger.info(f"Successfully imported package : {os.path.basename(pkgdir)}")
 
         # Prune downloads after uploading to save disk space
         if prune_dir:
