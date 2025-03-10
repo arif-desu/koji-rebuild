@@ -110,6 +110,7 @@ class Rebuild:
         else:
             self.tag_up = tag
 
+        # If package doesn't exist under tag, add it to tag
         if not self.downstream.checkTagPackage(self.tag_down, pkg):
             self.downstream.packageListAdd(
                 taginfo=self.tag_down,
