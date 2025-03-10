@@ -109,7 +109,7 @@ class PackageHelper:
                         self.logger.error(
                             f"Server response code :{str(response.status)} for package {pkg}. URL - {url}"
                         )
-                        return None
+                        return 1
 
                     with open(filepath, "wb") as f:
                         while True:
@@ -117,6 +117,7 @@ class PackageHelper:
                             if not chunk:
                                 break
                             f.write(chunk)
+            return 0
 
         nvra = nvra_generator(tag, pkg)
 
@@ -126,7 +127,9 @@ class PackageHelper:
                 pkgname = "%s-%s-%s.%s.rpm" % (n, v, r, a)
                 url = "/".join([topurl, pkg, v, r, a, pkgname])
                 filepath = "/".join([pkgpath, pkgname])
-                await urlretrieve_async(url, filepath)
+                ret = await urlretrieve_async(url, filepath)
+                if ret:
+                    return None
 
             return pkgpath
         else:
