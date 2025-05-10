@@ -1,0 +1,35 @@
+instance:
+  upstream:
+    kojiconf: koji.conf
+    target: f38
+    tag: f38-updates
+
+  downstream:
+    kojiconf: ${HOME}/.koji/config.d/local.conf
+    target: f40
+    tag: f40 # destination tag
+
+package_builds:
+  max_tasks: 16
+  buildlist: ${PWD}/build.list
+  ignorelist: ${PWD}/ignore.list
+
+  fasttrack: yes
+  topurl: https://kojipkgs.fedoraproject.org/packages
+  download_dir: ${HOME}/.rpms
+
+logging:
+  application: ${PWD}/kojibuild.log
+  completed: ${PWD}/completed.list
+  failed: ${PWD}/failed.list
+
+notifications:
+  alert: off # off, prompt, deferred
+  trigger: fail # notification event - "success", "fail", "all"
+
+  email:
+    server: smtp.example.com
+    port: 587
+    auth: none # authentication - "none", "tls", "start_tls"
+    sender_id: kojiuser@example.com
+    recipients: [kojiadmin@example.com]
