@@ -184,17 +184,27 @@ class PackageHelper:
         untagged = session.untaggedBuilds()
 
         # Tag imported packages
+        err = False
         for rpm in untagged:
-            session.tagBuildBypass(tag, build=rpm)
-            self.logger.info(f"Tagging build {rpm} under {tag}")
-
-        self.logger.info(f"Successfully imported package : {os.path.basename(pkgdir)}")
+            try:
+                session.tagBuildBypass(tag, build=rpm)
+                self.logger.debug(f"Tagging build {rpm} under {tag}")
+            except koji.GenericError as e:
+                self.logger.exception(f"{str(e).splitlines()[-1]}")
+                err = True
+                break
 
         # Prune downloads after uploading to save disk space
         if prune_dir:
             prune()
 
-        return 0
+        if err:
+            return 1
+        else:
+            self.logger.info(
+                f"Successfully imported package : {os.path.basename(pkgdir)}"
+            )
+            return 0
 
     def is_available(self, session: KojiSession, tag: str, pkg: str):
         builds = session.getLatestRPMS(tag, pkg)
